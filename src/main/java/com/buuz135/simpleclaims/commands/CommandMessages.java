@@ -35,4 +35,6 @@ public class CommandMessages {
     public static final Message PARTY_LEFT = Message.translation("commands.simpleclaims.partyLeft");
     public static final Message PARTY_DISBANDED = Message.translation("commands.simpleclaims.partyDisbanded");
     public static final Message PARTY_OWNER_TRANSFERRED = Message.translation("commands.simpleclaims.partyOwnerTransferred");
+
+    public static final Message MODIFIED_MAX_CHUNK_AMOUNT = Message.translation("commands.simpleclaims.modifiedMaxChunkAmount");
 }
