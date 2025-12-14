@@ -32,4 +32,7 @@ public class CommandMessages {
     public static final Message PARTY_INVITE_JOIN = Message.translation("commands.simpleclaims.partyInviteJoined");
 
     public static final Message PARTY_INVITE_SELF = Message.translation("commands.simpleclaims.partyInviteSelf");
+    public static final Message PARTY_LEFT = Message.translation("commands.simpleclaims.partyLeft");
+    public static final Message PARTY_DISBANDED = Message.translation("commands.simpleclaims.partyDisbanded");
+    public static final Message PARTY_OWNER_TRANSFERRED = Message.translation("commands.simpleclaims.partyOwnerTransferred");
 }

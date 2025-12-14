@@ -1,6 +1,7 @@
 package com.buuz135.simpleclaims.claim;
 
 import com.buuz135.simpleclaims.claim.party.PartyInvite;
+import com.buuz135.simpleclaims.commands.CommandMessages;
 import com.buuz135.simpleclaims.util.FileUtils;
 import com.buuz135.simpleclaims.claim.chunk.ChunkInfo;
 import com.buuz135.simpleclaims.claim.party.PartyInfo;
@@ -279,5 +280,28 @@ public class ClaimManager {
         party.addMember(player.getUuid());
         this.partyInvites.remove(player.getUuid().toString());
         return invite;
+    }
+
+    public void leaveParty(Player player, PartyInfo partyInfo){
+        if (partyInfo.isOwner(player.getUuid())) {
+            partyInfo.removeMember(player.getUuid());
+            if (partyInfo.getMembers().length > 0) {
+                partyInfo.setOwner(partyInfo.getMembers()[0]);
+                player.sendMessage(CommandMessages.PARTY_OWNER_TRANSFERRED.param("username", this.getPlayerNameTracker().getPlayerName(partyInfo.getMembers()[0])));
+            } else {
+                disbandParty(partyInfo);
+                player.sendMessage(CommandMessages.PARTY_DISBANDED);
+            }
+        } else {
+            partyInfo.removeMember(player.getUuid());
+            player.sendMessage(CommandMessages.PARTY_LEFT);
+        }
+        markDirty();
+    }
+
+    public void disbandParty(PartyInfo partyInfo){
+        this.chunks.forEach((dimension, chunkInfos) -> chunkInfos.values().removeIf(chunkInfo -> chunkInfo.getPartyOwner().equals(partyInfo.getId())));
+        this.parties.remove(partyInfo.getId().toString());
+        markDirty();
     }
 }

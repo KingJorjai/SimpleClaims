@@ -1,18 +1,14 @@
-package com.buuz135.simpleclaims.commands;
+package com.buuz135.simpleclaims.commands.subcommand.party;
 
 import com.buuz135.simpleclaims.claim.ClaimManager;
-import com.buuz135.simpleclaims.commands.subcommand.party.CreatePartyCommand;
-import com.buuz135.simpleclaims.commands.subcommand.party.PartyAcceptCommand;
-import com.buuz135.simpleclaims.commands.subcommand.party.PartyInviteCommand;
-import com.buuz135.simpleclaims.commands.subcommand.party.PartyLeaveCommand;
-import com.buuz135.simpleclaims.commands.subcommand.party.op.OpCreatePartyCommand;
-import com.buuz135.simpleclaims.commands.subcommand.party.op.OpPartyListCommand;
-import com.buuz135.simpleclaims.gui.PartyInfoEditGui;
+import com.buuz135.simpleclaims.commands.CommandMessages;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
+import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
+import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AsyncCommandBase;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -24,20 +20,13 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.hypixel.hytale.server.core.command.commands.player.inventory.InventorySeeCommand.MESSAGE_COMMANDS_ERRORS_PLAYER_NOT_IN_WORLD;
 
-public class SimpleClaimsPartyCommand extends AsyncCommandBase {
+public class PartyLeaveCommand extends AsyncCommandBase {
 
-    public SimpleClaimsPartyCommand() {
-        super("simpleclaimsparty", "Simple Claims Party Commands" );
-        this.addAliases("scp", "sc-party");
+
+    public PartyLeaveCommand() {
+        super("leave", "Leaves the party you are in, if you are the owner the ownership will be transferred to the first member, \nif there aren't any members the party will be disbanded");
         this.setPermissionGroup(GameMode.Adventure);
 
-        this.addSubCommand(new CreatePartyCommand());
-        this.addSubCommand(new PartyInviteCommand());
-        this.addSubCommand(new PartyAcceptCommand());
-        this.addSubCommand(new PartyLeaveCommand());
-        //OP Commands
-        this.addSubCommand(new OpCreatePartyCommand());
-        this.addSubCommand(new OpPartyListCommand());
     }
 
     @NonNullDecl
@@ -45,7 +34,6 @@ public class SimpleClaimsPartyCommand extends AsyncCommandBase {
     protected CompletableFuture<Void> executeAsync(CommandContext commandContext) {
         CommandSender sender = commandContext.sender();
         if (sender instanceof Player player) {
-            player.getWorldMapTracker().tick(0);
             Ref<EntityStore> ref = player.getReference();
             if (ref != null && ref.isValid()) {
                 Store<EntityStore> store = ref.getStore();
@@ -55,10 +43,10 @@ public class SimpleClaimsPartyCommand extends AsyncCommandBase {
                     if (playerRefComponent != null) {
                         var party = ClaimManager.getInstance().getPartyFromPlayer(player);
                         if (party == null) {
-                            commandContext.sendMessage(CommandMessages.NOT_IN_A_PARTY);
+                            player.sendMessage(CommandMessages.NOT_IN_A_PARTY);
                             return;
                         }
-                        player.getPageManager().openCustomPage(ref, store, new PartyInfoEditGui(playerRefComponent, party, false));
+                        ClaimManager.getInstance().leaveParty(player, party);
                     }
                 }, world);
             } else {
