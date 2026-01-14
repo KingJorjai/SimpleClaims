@@ -103,7 +103,7 @@ $C.@PageOverlay {
 
         // Party Settings
         Label #MemberList {
-          Text: "Chunk Protection Settings";
+          Text: "Non-Members Protection Settings";
           Style: (
             RenderUppercase: true,
             RenderBold: true,

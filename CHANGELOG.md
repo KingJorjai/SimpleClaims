@@ -10,6 +10,7 @@
 * Performance: Optimized TitleTickingSystem to reduce allocations
 * Performance: ClaimManager now uses O(1) lookups for party/claim operations
 * Performance: PartyInfo now uses O(1) lookups for member/override checks
+* Changed the category name for the chunk config to make it more clear what it does
 
 # 1.0.6
 
