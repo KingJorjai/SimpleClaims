@@ -10,13 +10,6 @@ import java.util.Optional;
 
 public class PartyOverride {
 
-    public static final BuilderCodec<PartyOverride> CODEC = BuilderCodec.<PartyOverride>builder(PartyOverride.class, PartyOverride::new)
-            .addField(new KeyedCodec<>("Type", Codec.STRING), (partyOverrideValue, s) -> partyOverrideValue.type = s, searchGuiData -> searchGuiData.type)
-            .addField(new KeyedCodec<>("Value", PartyOverrideValue.CODEC), (partyOverrideValue, s) -> partyOverrideValue.value = s, searchGuiData -> searchGuiData.value)
-            .build();
-
-    public static final ArrayCodec<PartyOverride> ARRAY_CODEC = new ArrayCodec<>(CODEC, PartyOverride[]::new);
-
     private String type;
     private PartyOverrideValue value;
 
@@ -45,12 +38,15 @@ public class PartyOverride {
         this.value = value;
     }
 
+    @Override
+    public String toString() {
+        return "PartyOverride{" +
+                "type='" + type + '\'' +
+                ", value=" + value +
+                '}';
+    }
+
     public static class PartyOverrideValue{
-        
-        public static final BuilderCodec<PartyOverrideValue> CODEC = BuilderCodec.<PartyOverrideValue>builder(PartyOverrideValue.class, PartyOverrideValue::new)
-                .addField(new KeyedCodec<>("Type", Codec.STRING), (partyOverrideValue, s) -> partyOverrideValue.type = s, searchGuiData -> searchGuiData.type)
-                .addField(new KeyedCodec<>("Value", Codec.STRING), (partyOverrideValue, s) -> partyOverrideValue.value = s, searchGuiData -> searchGuiData.value)
-                .build();
 
         private String type;
         private String value;
@@ -93,6 +89,14 @@ public class PartyOverride {
 
         public void setType(String type) {
             this.type = type;
+        }
+
+        @Override
+        public String toString() {
+            return "PartyOverrideValue{" +
+                    "type='" + type + '\'' +
+                    ", value='" + value + '\'' +
+                    '}';
         }
     }
 }

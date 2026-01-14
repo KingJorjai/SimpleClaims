@@ -12,12 +12,6 @@ import java.util.UUID;
 
 public class PlayerNameTracker {
 
-    public static final BuilderCodec<PlayerNameTracker> CODEC = BuilderCodec.builder(PlayerNameTracker.class, PlayerNameTracker::new)
-            .append(new KeyedCodec<>("Values", PlayerName.CODEC_ARRAY),
-                    (dimensionStorage, infoStorages, extraInfo) -> dimensionStorage.setNames(infoStorages),
-                    (dimensionStorage, extraInfo) -> dimensionStorage.getNames()).add()
-            .build();
-
     private HashMap<UUID, PlayerName> names;
 
     public PlayerNameTracker() {
@@ -67,6 +61,14 @@ public class PlayerNameTracker {
 
         public PlayerName() {
             this(UUID.randomUUID(), "");
+        }
+
+        public UUID getUuid() {
+            return uuid;
+        }
+
+        public String getName() {
+            return name;
         }
     }
 }

@@ -2,48 +2,11 @@ package com.buuz135.simpleclaims.claim.party;
 
 import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.claim.tracking.ModifiedTracking;
-import com.buuz135.simpleclaims.codecs.CustomCodecs;
-import com.hypixel.hytale.codec.Codec;
-import com.hypixel.hytale.codec.KeyedCodec;
-import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 
 import javax.annotation.Nullable;
 import java.util.*;
 
 public class PartyInfo {
-
-    public static final BuilderCodec<PartyInfo> CODEC = BuilderCodec.builder(PartyInfo.class, PartyInfo::new)
-            .append(new KeyedCodec<>("Id", Codec.UUID_STRING),
-                    (partyInfo, id, extraInfo) -> partyInfo.setId(id),
-                    (partyInfo, extraInfo) -> partyInfo.getId()).add()
-            .append(new KeyedCodec<>("Owner", Codec.UUID_STRING),
-                    (partyInfo, uuid, extraInfo) -> partyInfo.setOwner(uuid),
-                    (partyInfo, extraInfo) -> partyInfo.getOwner()).add()
-            .append(new KeyedCodec<>("Name", Codec.STRING),
-                    (partyInfo, string, extraInfo) -> partyInfo.setName(string),
-                    (partyInfo, extraInfo) -> partyInfo.getName()).add()
-            .append(new KeyedCodec<>("Description", Codec.STRING),
-                    (partyInfo, string, extraInfo) -> partyInfo.setDescription(string),
-                    (partyInfo, extraInfo) -> partyInfo.getDescription()).add()
-            .append(new KeyedCodec<>("Color", Codec.INTEGER),
-                    (partyInfo, integer, extraInfo) -> partyInfo.setColor(integer),
-                    (partyInfo, extraInfo) -> partyInfo.getColor()).add()
-            .append(new KeyedCodec<>("Members", CustomCodecs.CODEC_ARRAY),
-                    (partyInfo, uuid, extraInfo) -> partyInfo.setMembers(uuid),
-                    (partyInfo, extraInfo) -> partyInfo.getMembers()).add()
-            .append(new KeyedCodec<>("Overrides", PartyOverride.ARRAY_CODEC),
-                    (partyInfo, partyOverrides, extraInfo) -> partyInfo.setOverrides(partyOverrides),
-                    (partyInfo, extraInfo) -> partyInfo.getOverrides().toArray(new PartyOverride[0])).add()
-            .append(new KeyedCodec<>("CreatedTracker", ModifiedTracking.CODEC),
-                    (partyInfo, partyOverrides, extraInfo) -> partyInfo.setCreatedTracked(partyOverrides),
-                    (partyInfo, extraInfo) -> partyInfo.getCreatedTracked()).add()
-            .append(new KeyedCodec<>("ModifiedTracker", ModifiedTracking.CODEC),
-                    (partyInfo, partyOverrides, extraInfo) -> partyInfo.setModifiedTracked(partyOverrides),
-                    (partyInfo, extraInfo) -> partyInfo.getModifiedTracked()).add()
-            .build();
-
-    public static final ArrayCodec<PartyInfo> ARRAY_CODEC = new ArrayCodec<>(CODEC, PartyInfo[]::new, PartyInfo::new);
 
     private UUID id;
     private UUID owner;
@@ -222,7 +185,10 @@ public class PartyInfo {
                 ", name='" + name + '\'' +
                 ", description='" + description + '\'' +
                 ", members=" + Arrays.toString(members) +
+                ", color=" + color +
+                ", overrides=" + overrides +
+                ", createdTracked=" + createdTracked +
+                ", modifiedTracked=" + modifiedTracked +
                 '}';
     }
-
 }

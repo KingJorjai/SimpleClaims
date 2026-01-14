@@ -66,7 +66,8 @@ public class Main extends JavaPlugin {
             WORLDS.put(event.getWorld().getName(), event.getWorld());
             this.getLogger().at(Level.INFO).log("Registered world: " + event.getWorld().getName());
 
-            if (CONFIG.get().isForceSimpleClaimsChunkWorldMap() && !event.getWorld().getWorldConfig().isDeleteOnRemove()) event.getWorld().getWorldConfig().setWorldMapProvider(new SimpleClaimsWorldMapProvider());
+            if (CONFIG.get().isForceSimpleClaimsChunkWorldMap() && !event.getWorld().getWorldConfig().isDeleteOnRemove() && ClaimManager.getInstance().canClaimInDimension(event.getWorld()))
+                event.getWorld().getWorldConfig().setWorldMapProvider(new SimpleClaimsWorldMapProvider());
         });
 
         this.getEventRegistry().registerGlobal(RemoveWorldEvent.class, (event) -> {

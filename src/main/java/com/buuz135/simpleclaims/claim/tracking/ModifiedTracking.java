@@ -1,8 +1,5 @@
 package com.buuz135.simpleclaims.claim.tracking;
 
-import com.buuz135.simpleclaims.claim.party.PartyInfo;
-import com.buuz135.simpleclaims.claim.party.PartyOverride;
-import com.buuz135.simpleclaims.codecs.CustomCodecs;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
@@ -35,5 +32,26 @@ public class ModifiedTracking {
 
     public ModifiedTracking() {
         this(UUID.randomUUID(), "-", "");
+    }
+
+    public UUID getUserUUID() {
+        return user_uuid;
+    }
+
+    public String getUserName() {
+        return user_name;
+    }
+
+    public String getDate() {
+        return date;
+    }
+
+    @Override
+    public String toString() {
+        return "ModifiedTracking{" +
+                "user_uuid=" + user_uuid +
+                ", user_name='" + user_name + '\'' +
+                ", date='" + date + '\'' +
+                '}';
     }
 }
