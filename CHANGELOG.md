@@ -1,3 +1,7 @@
+# 1.0.12
+
+* Changed custom map to use the default map settings, closes #37
+
 # 1.0.11
 
 * Players can now be invited to a party from the edit party screen closes #15
