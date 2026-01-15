@@ -4,6 +4,7 @@ import com.buuz135.simpleclaims.claim.ClaimManager;
 import com.buuz135.simpleclaims.claim.party.PartyInfo;
 import com.buuz135.simpleclaims.claim.party.PartyOverride;
 import com.buuz135.simpleclaims.claim.party.PartyOverrides;
+import com.buuz135.simpleclaims.Main;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
@@ -146,7 +147,7 @@ public class PartyInfoEditGui extends InteractiveCustomUIPage<PartyInfoEditGui.P
         uiCommandBuilder.set("#InteractBlocksSetting #CheckBox.Value",this.info.isBlockInteractEnabled());
         uiCommandBuilder.set("#InteractBlocksSetting #CheckBox.Disabled", !playerCanModify);
         uiCommandBuilder.set("#PVPSetting #CheckBox.Value", this.info.isPVPEnabled());
-        uiCommandBuilder.set("#PVPSetting #CheckBox.Disabled", !playerCanModify);
+        uiCommandBuilder.set("#PVPSetting #CheckBox.Disabled", !playerCanModify || !Main.CONFIG.get().isAllowPartyPVPSetting());
 
         uiEventBuilder.addEventBinding(CustomUIEventBindingType.ValueChanged, "#PlaceBlocksSetting #CheckBox", EventData.of("RemoveButtonAction", "PlaceBlocksSetting:0"), false);
         uiEventBuilder.addEventBinding(CustomUIEventBindingType.ValueChanged, "#BreakBlocksSetting #CheckBox", EventData.of("RemoveButtonAction", "BreakBlocksSetting:0"), false);
