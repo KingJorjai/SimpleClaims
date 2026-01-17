@@ -28,6 +28,20 @@ descriptions.
 - `/simpleclaims`: `/sc`, `/sc-chunks`, `/scc`
 - `/simpleclaimsparty`: `/scp`, `/sc-party`
 
+### Configuring Permissions with Hyales base permissions
+
+You just need to exectue these commands in the Hytale console:
+
+- `/perm group add Adventure simpleclaims.claim`
+- `/perm group add Adventure simpleclaims.unclaim`
+- `/perm group add Adventure simpleclaims.claim-gui`
+- `/perm group add Adventure simpleclaims.edit-party`
+- `/perm group add Adventure simpleclaims.create-party`
+- `/perm group add Adventure simpleclaims.create-invite`
+- `/perm group add Adventure simpleclaims.accept-invite`
+- `/perm group add Adventure simpleclaims.party-leave`
+- `/perm group add OP simpleclaims.admin.*`
+
 ### Configuring Permissions with LuckPerms
 
 To manage permissions for Simple Claims using LuckPerms in Hytale, follow these steps:
