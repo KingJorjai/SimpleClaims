@@ -80,6 +80,10 @@ public class ChunkInfo {
         this.createdTracked = createdTracked;
     }
 
+    public String getCoordinates() {
+        return formatCoordinates(chunkX, chunkZ);
+    }
+
     public static final class DimensionStorage {
 
         public static final BuilderCodec<DimensionStorage> CODEC = BuilderCodec.builder(DimensionStorage.class, DimensionStorage::new)

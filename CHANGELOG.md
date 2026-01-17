@@ -1,3 +1,7 @@
+# 1.0.16
+
+* Added a claimed chunks list for the party, closes #50
+
 # 1.0.14
 
 * Fixed inviting players to a party using the GUI not working properly

@@ -88,6 +88,12 @@ $C.@PageOverlay {
               Text: "25";
             }
           }
+          $C.@TextButton #SeeClaimedChunksButton {
+              Anchor: (Height: 22, Left: 10, Top: 9);
+              Padding: ();
+              Text: "  VIEW  ";
+              Style: @CustomStyle;
+            }
         }
 
         

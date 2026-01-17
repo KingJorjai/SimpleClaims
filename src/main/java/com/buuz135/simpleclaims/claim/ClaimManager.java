@@ -16,6 +16,7 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -352,7 +353,7 @@ public class ClaimManager {
 
     public void queueMapUpdateForParty(PartyInfo partyInfo) {
         this.getChunks().forEach((dimension, chunkInfos) -> {
-            var world = Main.WORLDS.get(dimension);
+            var world = Universe.get().getWorlds().get(dimension);
             if (world != null) {
                 for (ChunkInfo value : chunkInfos.values()) {
                     if (value.getPartyOwner().equals(partyInfo.getId())) {

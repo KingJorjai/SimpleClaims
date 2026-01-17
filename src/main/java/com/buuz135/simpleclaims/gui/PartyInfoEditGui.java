@@ -7,6 +7,7 @@ import com.buuz135.simpleclaims.claim.party.PartyOverride;
 import com.buuz135.simpleclaims.claim.party.PartyOverrides;
 import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.commands.CommandMessages;
+import com.buuz135.simpleclaims.gui.subscreens.ChunkListGui;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
@@ -190,6 +191,10 @@ public class PartyInfoEditGui extends InteractiveCustomUIPage<PartyInfoEditGui.P
                     }
                 }
             }
+            if (data.button.equals("SeeClaimedChunks")) {
+                player.getPageManager().openCustomPage(ref, store, new ChunkListGui(playerRef, this.info, this, this.isOpEdit));
+                return;
+            }
         }
         this.sendUpdate();
     }
@@ -205,6 +210,8 @@ public class PartyInfoEditGui extends InteractiveCustomUIPage<PartyInfoEditGui.P
         uiCommandBuilder.set("#PartyInfo #PartyDescriptionField.Value", this.info.getDescription());
         uiCommandBuilder.set("#PartyInfo #PartyDescriptionField.IsReadOnly", !playerCanModify);
         uiEventBuilder.addEventBinding(CustomUIEventBindingType.ValueChanged, "#PartyDescriptionField", EventData.of("@Description", "#PartyDescriptionField.Value"), false);
+        uiEventBuilder.addEventBinding(CustomUIEventBindingType.Activating, "#SeeClaimedChunksButton", EventData.of("Button", "SeeClaimedChunks"), false);
+
         int i = 0;
         for (; i < this.info.getMembers().length; i++) {
             uiCommandBuilder.append("#MemberEntries", "Pages/Buuz135_SimpleClaims_PartyMemberListEntry.ui");
