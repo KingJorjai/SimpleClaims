@@ -43,6 +43,9 @@ public class SimpleClaimsConfig {
             .append(new KeyedCodec<String[]>("WorldClaimBlacklist", Codec.STRING_ARRAY),
                     (simpleClaimsConfig, value, extraInfo) -> simpleClaimsConfig.WorldNameBlacklistForClaiming = value,
                     (simpleClaimsConfig, extraInfo) -> simpleClaimsConfig.WorldNameBlacklistForClaiming).add()
+            .append(new KeyedCodec<String>("TitleTopClaimTitleText", Codec.STRING),
+                    (simpleClaimsConfig, value, extraInfo) -> simpleClaimsConfig.TitleTopClaimTitleText = value,
+                    (simpleClaimsConfig, extraInfo) -> simpleClaimsConfig.TitleTopClaimTitleText).add()
             .build();
 
     private int DefaultPartyClaimsAmount = 25;
@@ -55,6 +58,7 @@ public class SimpleClaimsConfig {
     private boolean AllowPartyBreakBlockSetting = true;
     private boolean AllowPartyInteractBlockSetting = true;
     private String[] WorldNameBlacklistForClaiming = new String[0];
+    private String TitleTopClaimTitleText = "Simple Claims";
 
     private boolean ForceSimpleClaimsChunkWorldMap = true;
     private boolean CreativeModeBypassProtection = false;
@@ -109,5 +113,9 @@ public class SimpleClaimsConfig {
 
     public boolean isAllowPartyInteractBlockSetting() {
         return AllowPartyInteractBlockSetting;
+    }
+
+    public String getTitleTopClaimTitleText() {
+        return TitleTopClaimTitleText;
     }
 }

@@ -160,8 +160,10 @@ public class PartyInfo {
 
     public void setOverride(PartyOverride override){
         if (override.getType().equals(PartyOverrides.CLAIM_CHUNK_AMOUNT)
-                && (int) override.getValue().tryGetTypedValue().orElse(0) == Main.CONFIG.get().getDefaultPartyClaimsAmount())
+                && (int) override.getValue().tryGetTypedValue().orElse(0) == Main.CONFIG.get().getDefaultPartyClaimsAmount()) {
+            overrideMap.remove(override.getType());
             return;
+        }
         overrideMap.put(override.getType(), override);
     }
 

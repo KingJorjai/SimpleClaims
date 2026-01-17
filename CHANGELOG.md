@@ -1,6 +1,9 @@
 # 1.0.16
 
 * Added a claimed chunks list for the party, closes #50
+* Added a config option to change the title top line when entering a claim, closes #16
+* Fixed a bug where the admin-modify-chunk-all command wasn't updating parties amount if they had the same amount as the
+  config
 
 # 1.0.14
 

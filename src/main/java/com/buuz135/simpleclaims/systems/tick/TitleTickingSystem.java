@@ -23,12 +23,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TitleTickingSystem extends EntityTickingSystem<EntityStore> {
 
     private static final Message WILDERNESS_MESSAGE = Message.raw("Wilderness").color(Color.GREEN);
-    private static final Message SIMPLE_CLAIMS_MESSAGE = Message.raw("Simple Claims");
+    private final Message simpleClaimsMessage;
     private static final String WILDERNESS_TEXT = "Wilderness";
     private final Map<UUID, String> playerLastTitle;
 
-    public TitleTickingSystem() {
+    public TitleTickingSystem(String topLine) {
         this.playerLastTitle = new ConcurrentHashMap<>();
+        simpleClaimsMessage = Message.raw(topLine);
     }
 
     @Override
@@ -57,7 +58,7 @@ public class TitleTickingSystem extends EntityTickingSystem<EntityStore> {
         String previousTitle = playerLastTitle.get(playerRef.getUuid());
         if (!titleText.equals(previousTitle)) {
             playerLastTitle.put(playerRef.getUuid(), titleText);
-            EventTitleUtil.showEventTitleToPlayer(playerRef, titleMessage, SIMPLE_CLAIMS_MESSAGE, false, null, 2, 0.5f, 0.5f);
+            EventTitleUtil.showEventTitleToPlayer(playerRef, titleMessage, simpleClaimsMessage, false, null, 2, 0.5f, 0.5f);
         }
     }
 
