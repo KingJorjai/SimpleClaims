@@ -111,7 +111,7 @@ public class ClaimManager {
         logger.at(Level.INFO).log("Loading name cache data from DB...");
         PlayerNameTracker tracker = this.databaseManager.loadNameCache();
         for (PlayerNameTracker.PlayerName name : tracker.getNames()) {
-            this.playerNameTracker.setPlayerName(name.getUuid(), name.getName());
+            this.playerNameTracker.setPlayerName(name.getUuid(), name.getName(), name.getLastSeen());
         }
 
         logger.at(Level.INFO).log("Loading admin overrides data from DB...");
@@ -143,7 +143,7 @@ public class ClaimManager {
 
                     try {
                         for (PlayerNameTracker.PlayerName name : this.playerNameTracker.getNames()) {
-                            this.databaseManager.saveNameCache(name.getUuid(), name.getName());
+                            this.databaseManager.saveNameCache(name.getUuid(), name.getName(), name.getLastSeen());
                         }
                     } catch (Exception e) {
                         logger.at(Level.SEVERE).log(e.getMessage());
@@ -286,9 +286,9 @@ public class ClaimManager {
         this.worldsNeedingUpdates.add(world);
     }
 
-    public void setPlayerName(UUID uuid, String name) {
-        this.playerNameTracker.setPlayerName(uuid, name);
-        this.databaseManager.saveNameCache(uuid, name);
+    public void setPlayerName(UUID uuid, String name, long lastSeen) {
+        this.playerNameTracker.setPlayerName(uuid, name, lastSeen);
+        this.databaseManager.saveNameCache(uuid, name, lastSeen);
     }
 
     public PlayerNameTracker getPlayerNameTracker() {
@@ -341,6 +341,7 @@ public class ClaimManager {
             return;
         } else {
             partyInfo.removeMember(player.getUuid());
+            playerToParty.remove(player.getUuid());
             player.sendMessage(CommandMessages.PARTY_LEFT);
         }
         databaseManager.saveParty(partyInfo);
@@ -363,6 +364,7 @@ public class ClaimManager {
 
         this.parties.remove(partyInfo.getId().toString());
         databaseManager.deleteParty(partyInfo.getId());
+        markDirty();
     }
 
     public void removeAdminOverride(UUID uuid) {
@@ -412,5 +414,46 @@ public class ClaimManager {
 
     public Map<UUID, UUID> getPlayerToParty() {
         return playerToParty;
+    }
+
+    public void disbandInactiveParties() {
+        int inactivityHours = Main.CONFIG.get().getPartyInactivityHours();
+        if (inactivityHours < 0) return;
+        long inactivityMillis = inactivityHours * 60L * 60L * 1000L;
+        long currentTime = System.currentTimeMillis();
+        List<PartyInfo> toDisband = new ArrayList<>();
+        for (PartyInfo party : parties.values()) {
+            if (party.getOwner() == null && (party.getMembers() == null || party.getMembers().length == 0)) {
+                continue; // Ignore if no owner and no members
+            }
+            boolean allInactive = true;
+            if (party.getOwner() != null) {
+                var playerName = playerNameTracker.getNamesMap().get(party.getOwner());
+                if (playerName == null || playerName.getLastSeen() <= 0 || Universe.get().getPlayer(party.getOwner()) != null) { //Check if online also
+                    allInactive = false; // Ignore if lastSeen is missing
+                } else if (currentTime - playerName.getLastSeen() < inactivityMillis) {
+                    allInactive = false;
+                }
+            }
+            if (allInactive && party.getMembers() != null) {
+                for (UUID member : party.getMembers()) {
+                    var playerName = playerNameTracker.getNamesMap().get(member);
+                    if (playerName == null || playerName.getLastSeen() <= 0 || Universe.get().getPlayer(member) != null) { //Check if online also
+                        allInactive = false; // Ignore if lastSeen is missing
+                        break;
+                    } else if (currentTime - playerName.getLastSeen() < inactivityMillis) {
+                        allInactive = false;
+                        break;
+                    }
+                }
+            }
+            if (allInactive) {
+                toDisband.add(party);
+            }
+        }
+        for (PartyInfo party : toDisband) {
+            logger.at(Level.INFO).log("Disbanding inactive party: " + party.getName() + " (" + party.getId() + ")");
+            disbandParty(party);
+        }
     }
 }

@@ -34,7 +34,8 @@ public class PlayerNameTrackerBlockingFile extends BlockingDiskFile {
             JsonObject playerObj = jsonElement.getAsJsonObject();
             this.tracker.setPlayerName(
                     UUID.fromString(playerObj.get("UUID").getAsString()),
-                    playerObj.get("Name").getAsString()
+                    playerObj.get("Name").getAsString(),
+                    -1
             );
         });
     }

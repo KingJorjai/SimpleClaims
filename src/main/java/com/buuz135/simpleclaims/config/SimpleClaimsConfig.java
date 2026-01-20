@@ -110,6 +110,9 @@ public class SimpleClaimsConfig {
             .append(new KeyedCodec<Integer>("MaxPartyAllies", Codec.INTEGER),
                     (simpleClaimsConfig, value, extraInfo) -> simpleClaimsConfig.MaxPartyAllies = value,
                     (simpleClaimsConfig, extraInfo) -> simpleClaimsConfig.MaxPartyAllies).add()
+            .append(new KeyedCodec<Integer>("PartyInactivityHours", Codec.INTEGER),
+                    (simpleClaimsConfig, value, extraInfo) -> simpleClaimsConfig.PartyInactivityHours = value,
+                    (simpleClaimsConfig, extraInfo) -> simpleClaimsConfig.PartyInactivityHours).add()
             .append(new KeyedCodec<Boolean>("RenderClaimNamesOnWorldMap", Codec.BOOLEAN),
                     (simpleClaimsConfig, value, extraInfo) -> simpleClaimsConfig.RenderClaimNamesOnWorldMap = value,
                     (simpleClaimsConfig, extraInfo) -> simpleClaimsConfig.RenderClaimNamesOnWorldMap).add()
@@ -118,6 +121,7 @@ public class SimpleClaimsConfig {
     private int DefaultPartyClaimsAmount = 25;
     private int MaxPartyMembers = -1;
     private int MaxPartyAllies = -1;
+    private int PartyInactivityHours = -1;
     private boolean DefaultPartyBlockPlaceEnabled = false;
     private boolean DefaultPartyBlockBreakEnabled = false;
     private boolean DefaultPartyBlockInteractEnabled = false;
@@ -288,6 +292,10 @@ public class SimpleClaimsConfig {
 
     public int getMaxPartyAllies() {
         return MaxPartyAllies;
+    }
+
+    public int getPartyInactivityHours() {
+        return PartyInactivityHours;
     }
 
     public boolean isRenderClaimNamesOnWorldMap() {

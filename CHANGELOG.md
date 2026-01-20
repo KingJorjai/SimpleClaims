@@ -3,6 +3,8 @@
 * Replaced interactions with custom ones to allow claim protection, closes #40
 * Fixed library conflicts, closes #98
 * Removed party ownership transfer when leaving a party, closes #100
+* Added a config option to disband parties for inactivity, all the players need to be inactive for the party to be
+  disbanded, closes #74
 
 # 1.0.18
 
