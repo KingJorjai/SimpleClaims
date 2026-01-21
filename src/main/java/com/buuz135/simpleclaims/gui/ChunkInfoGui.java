@@ -1,7 +1,7 @@
 package com.buuz135.simpleclaims.gui;
 
+import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.claim.ClaimManager;
-import com.buuz135.simpleclaims.claim.tracking.ModifiedTracking;
 import com.buuz135.simpleclaims.commands.CommandMessages;
 import com.buuz135.simpleclaims.util.MessageHelper;
 import com.hypixel.hytale.codec.Codec;
@@ -9,7 +9,6 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.Message;
@@ -21,12 +20,10 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import it.unimi.dsi.fastutil.longs.LongSet;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
 import java.awt.*;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 
 public class ChunkInfoGui extends InteractiveCustomUIPage<ChunkInfoGui.ChunkInfoData> {
 
@@ -34,6 +31,8 @@ public class ChunkInfoGui extends InteractiveCustomUIPage<ChunkInfoGui.ChunkInfo
     private final int chunkZ;
     private final String dimension;
     private boolean isOp;
+
+    private CompletableFuture<ChunkInfoMapAsset> mapAsset = null;
 
     public ChunkInfoGui(@NonNullDecl PlayerRef playerRef, String dimension, int chunkX, int chunkZ, boolean isOp) {
         super(playerRef, CustomPageLifetime.CanDismiss, ChunkInfoData.CODEC);
@@ -130,6 +129,21 @@ public class ChunkInfoGui extends InteractiveCustomUIPage<ChunkInfoGui.ChunkInfo
         }
         uiCommandBuilder.set("#ClaimedChunksInfo #ClaimedChunksCount.Text", ClaimManager.getInstance().getAmountOfClaims(playerParty)+ "");
         uiCommandBuilder.set("#ClaimedChunksInfo #MaxChunksCount.Text", playerParty.getMaxClaimAmount() + "");
+
+        if (this.mapAsset == null && Main.CONFIG.get().isRenderMapInClaimUI()) {
+            ChunkInfoMapAsset.sendToPlayer(this.playerRef.getPacketHandler(), ChunkInfoMapAsset.empty());
+
+            this.mapAsset = ChunkInfoMapAsset.generate(this.playerRef, chunkX - 8, chunkZ - 8, chunkX + 8, chunkZ + 8);
+
+            if (this.mapAsset != null) {
+                this.mapAsset.thenAccept(asset -> {
+                    if (asset == null) return;
+
+                    ChunkInfoMapAsset.sendToPlayer(this.playerRef.getPacketHandler(), asset);
+                    this.sendUpdate();
+                });
+            }
+        }
 
         var hytaleGold = "#93844c";
 

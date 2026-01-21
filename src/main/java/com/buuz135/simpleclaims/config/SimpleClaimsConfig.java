@@ -116,6 +116,9 @@ public class SimpleClaimsConfig {
             .append(new KeyedCodec<Boolean>("RenderClaimNamesOnWorldMap", Codec.BOOLEAN),
                     (simpleClaimsConfig, value, extraInfo) -> simpleClaimsConfig.RenderClaimNamesOnWorldMap = value,
                     (simpleClaimsConfig, extraInfo) -> simpleClaimsConfig.RenderClaimNamesOnWorldMap).add()
+            .append(new KeyedCodec<Boolean>("EXPERIMENTAL-RenderMapInClaimUI", Codec.BOOLEAN),
+                    (simpleClaimsConfig, value, extraInfo) -> simpleClaimsConfig.RenderMapInClaimUI = value,
+                    (simpleClaimsConfig, extraInfo) -> simpleClaimsConfig.RenderMapInClaimUI).add()
             .build();
 
     private int DefaultPartyClaimsAmount = 25;
@@ -152,6 +155,7 @@ public class SimpleClaimsConfig {
     private boolean EnableAlloyEntryTesting = false;
     private boolean EnableParticleBorders = true;
     private boolean RenderClaimNamesOnWorldMap = false;
+    private boolean RenderMapInClaimUI = true;
 
     private boolean ForceSimpleClaimsChunkWorldMap = true;
     private boolean CreativeModeBypassProtection = false;
@@ -300,5 +304,9 @@ public class SimpleClaimsConfig {
 
     public boolean isRenderClaimNamesOnWorldMap() {
         return RenderClaimNamesOnWorldMap;
+    }
+
+    public boolean isRenderMapInClaimUI() {
+        return RenderMapInClaimUI;
     }
 }

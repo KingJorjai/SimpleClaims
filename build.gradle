@@ -38,6 +38,9 @@ if (os.isWindows()) {
     hytaleHome = "$userHome/Library/Application Support/Hytale"
 } else if (os.isLinux()) {
     hytaleHome = "$userHome/.local/share/Hytale"
+    if (!file(hytaleHome).exists()) {
+        hytaleHome = "$userHome/.var/app/com.hypixel.HytaleLauncher/data/Hytale"
+    }
 } else {
     throw new GradleException("Unsupported OS for Hytale")
 }
@@ -63,12 +66,12 @@ test {
 processResources {
     var expandProps = [
         'name'          : project.name,
-    'version'       : project.version,
-    'group'         : project.group,
-    'description'   : mod_description,
-    'website'       : website,
-    'server_version': server_version,
-    'entry_point'   : entry_point
+        'version'       : project.version,
+        'group'         : project.group,
+        'description'   : mod_description,
+        'website'       : website,
+        'server_version': server_version,
+        'entry_point'   : entry_point
     ]
 
     filesMatching(['manifest.json']) {
