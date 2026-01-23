@@ -64,9 +64,6 @@ public class Main extends JavaPlugin {
         this.getEntityStoreRegistry().registerSystem(new GlobalDamageBlockEventSystem());
         this.getEntityStoreRegistry().registerSystem(new GlobalBreakBlockEventSystem());
 
-        // Register projectile tracking system to trace explosions back to their owners
-        this.getEntityStoreRegistry().registerSystem(new ProjectileTrackingSystem());
-
         this.getChunkStoreRegistry().registerSystem(new WorldMapUpdateTickingSystem());
         this.getCommandRegistry().registerCommand(new SimpleClaimProtectCommand());
         this.getCommandRegistry().registerCommand(new SimpleClaimsPartyCommand());
