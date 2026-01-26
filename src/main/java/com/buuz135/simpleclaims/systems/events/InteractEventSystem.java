@@ -3,6 +3,10 @@ package com.buuz135.simpleclaims.systems.events;
 import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.claim.ClaimManager;
 import com.buuz135.simpleclaims.claim.party.PartyInfo;
+import com.buuz135.simpleclaims.systems.tick.CraftingUiQuantitiesSystem;
+import com.buuz135.simpleclaims.util.BenchChestCache;
+import com.buuz135.simpleclaims.util.WindowExtraResourcesState;
+import com.hypixel.hytale.builtin.crafting.state.BenchState;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Ref;
@@ -11,9 +15,15 @@ import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.RootDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.EntityEventSystem;
+import com.hypixel.hytale.protocol.ExtraResources;
+import com.hypixel.hytale.protocol.ItemQuantity;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.entity.entities.player.windows.MaterialExtraResourcesSection;
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent;
+import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
+import com.hypixel.hytale.server.core.io.PacketHandler;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
@@ -45,16 +55,54 @@ public class InteractEventSystem extends EntityEventSystem<EntityStore, UseBlock
         }
 
         if (blockName.contains("chest")) defaultInteract = PartyInfo::isChestInteractEnabled;
-        else if (blockName.contains("bench") && !blockName.contains("furniture"))
+        else if (blockName.contains("bench") && !blockName.contains("furniture")) {
             defaultInteract = PartyInfo::isBenchInteractEnabled;
+
+            if (playerRef != null && !ClaimManager.getInstance().isAllowedToInteract(playerRef.getUuid(), player.getWorld().getName(), event.getTargetBlock().getX(), event.getTargetBlock().getZ(), defaultInteract)) {
+                event.setCancelled(true);
+                playerRef.getPacketHandler().getChannel().attr(WindowExtraResourcesState.NEXT_OPEN_EXTRA).set(null);
+                return;
+            }
+
+            PacketHandler ph = playerRef.getPacketHandler();
+            var ch = ph.getChannel();
+            World world = player.getWorld();
+
+            var targetBlock = event.getTargetBlock();
+            ExtraResources next = buildExtraResourcesForBench(world, playerRef, targetBlock.getX(), targetBlock.getY(), targetBlock.getZ());
+            if (next != null) {
+                ch.attr(WindowExtraResourcesState.NEXT_OPEN_EXTRA).set(next);
+                WindowExtraResourcesState.getOrCreateBenchSet(ch).add(0); // provisional id
+            }
+            return;
+        }
         else if (blockName.contains("door")) defaultInteract = PartyInfo::isDoorInteractEnabled;
         else if (blockName.contains("chair") || blockName.contains("stool") || (blockName.contains("bench") && blockName.contains("furniture")))
             defaultInteract = PartyInfo::isChairInteractEnabled;
         else if (blockName.contains("portal") || blockName.contains("teleporter"))
             defaultInteract = PartyInfo::isPortalInteractEnabled;
-        if (ignored || (playerRef != null && !ClaimManager.getInstance().isAllowedToInteract(playerRef.getUuid(), player.getWorld().getName(), event.getTargetBlock().getX(), event.getTargetBlock().getZ(), defaultInteract))) {
+        if (!ignored && (playerRef != null && !ClaimManager.getInstance().isAllowedToInteract(playerRef.getUuid(), player.getWorld().getName(), event.getTargetBlock().getX(), event.getTargetBlock().getZ(), defaultInteract))) {
             event.setCancelled(true);
         }
+    }
+
+    private static ExtraResources buildExtraResourcesForBench(World world, PlayerRef playerRef, int bx, int by, int bz) {
+        var chests = BenchChestCache.getAllowedChests(world, playerRef, bx, by, bz);
+
+        BenchState benchState = null;
+        var st = world.getState(bx, by, bz, true);
+        if (st instanceof BenchState bs) benchState = bs;
+
+        if (benchState == null) return null;
+
+        ItemQuantity[] counts = CraftingUiQuantitiesSystem.computeCounts(benchState, chests);
+        ItemContainer uiContainer = CraftingUiQuantitiesSystem.buildUiContainer(chests);
+
+        MaterialExtraResourcesSection section = new MaterialExtraResourcesSection();
+        section.setItemContainer(uiContainer);
+        section.setExtraMaterials(counts);
+        section.setValid(true);
+        return section.toPacket();
     }
 
     @Nullable
