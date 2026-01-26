@@ -1,3 +1,8 @@
+# 1.0.24
+
+* Fix interaction logic to require ignored flag for block interactions - pirmax
+* Add configurable command aliases - Emibergo02
+
 # 1.0.23
 
 * Fixed Bucket & Watering Can interaction not working properly, closes #140
