@@ -118,6 +118,8 @@ public class SimpleClaimsExpansion extends PlaceholderExpansion {
                     return party.getPartyAllies().stream().map(UUID::toString).collect(Collectors.joining(","));
                 case "party_allies_names":
                     return party.getPartyAllies().stream().map(CLAIMS::getPartyById).filter(Objects::nonNull).map(PartyInfo::getName).collect(Collectors.joining(","));
+                case "party_claims":
+                    return String.valueOf(CLAIMS.getAmountOfClaims(party));
             }
 
             if (params.startsWith("party_can_")) {
