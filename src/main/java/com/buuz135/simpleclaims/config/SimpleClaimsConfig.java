@@ -3,7 +3,6 @@ package com.buuz135.simpleclaims.config;
 
 public class SimpleClaimsConfig {
 
-
     private String[] PartyCommandAliases = new String[]{"scp", "sc-party", "party"};
     private int DefaultPartyClaimsAmount = 25;
     private int MaxAddChunkAmount = 100; // The maximum amount of chunks a party can have when using the add-chunk-amount command
@@ -48,6 +47,8 @@ public class SimpleClaimsConfig {
 
     private boolean ForceSimpleClaimsChunkWorldMap = true;
     private boolean CreativeModeBypassProtection = false;
+    private boolean EnableAdjacentChunkRestriction = true;
+    private boolean EnablePerimeterReservation = true;
 
     private String[] BlocksThatIgnoreInteractRestrictions = new String[]{"gravestone"};
 
@@ -221,6 +222,14 @@ public class SimpleClaimsConfig {
 
     public boolean isNotifyPartyChatToggling() {
         return NotifyPartyChatToggling;
+    }
+
+    public boolean isEnableAdjacentChunkRestriction() {
+        return EnableAdjacentChunkRestriction;
+    }
+
+    public boolean isEnablePerimeterReservation() {
+        return EnablePerimeterReservation;
     }
 
 }

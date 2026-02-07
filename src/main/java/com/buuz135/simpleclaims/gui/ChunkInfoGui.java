@@ -3,6 +3,7 @@ package com.buuz135.simpleclaims.gui;
 import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.claim.ClaimManager;
 import com.buuz135.simpleclaims.claim.party.PartyOverrides;
+import com.buuz135.simpleclaims.claim.chunk.ReservedChunk;
 import com.buuz135.simpleclaims.commands.CommandMessages;
 import com.buuz135.simpleclaims.util.MessageHelper;
 import com.hypixel.hytale.codec.Codec;
@@ -70,15 +71,81 @@ public class ChunkInfoGui extends InteractiveCustomUIPage<ChunkInfoGui.ChunkInfo
                     }
                     var chunk = ClaimManager.getInstance().getChunk(dimension, x, z);
                     var selectedParty = ClaimManager.getInstance().getPartyById(selectedPartyID);
-                    if ((chunk == null || ClaimManager.getInstance().getPartyById(chunk.getPartyOwner()) == null) && selectedParty != null && ClaimManager.getInstance().hasEnoughClaimsLeft(selectedParty)) {
-                        var chunkInfo = ClaimManager.getInstance().claimChunkBy(dimension, x, z, selectedParty, playerInstance, playerRef);
-                        ClaimManager.getInstance().queueMapUpdate(playerInstance.getWorld(), x, z);
+                    if ((chunk == null || ClaimManager.getInstance().getPartyById(chunk.getPartyOwner()) == null) && selectedParty != null) {
+                        // Check if chunk is reserved by selected party - if so, allow claiming it
+                        boolean isOwnReserved = ClaimManager.getInstance().isReservedByOwnParty(dimension, x, z, selectedParty.getId());
+                        
+                        // Check if chunk is reserved by another party (only if perimeter reservation is enabled)
+                        if (Main.CONFIG.get().isEnablePerimeterReservation() && !isOwnReserved &&
+                            ClaimManager.getInstance().isReservedByOtherParty(dimension, x, z, selectedParty.getId())) {
+                            playerInstance.sendMessage(CommandMessages.CHUNK_RESERVED_BY_OTHER_PARTY);
+                            this.sendUpdate();
+                            return;
+                        }
+                        
+                        // Check if claiming this chunk would create a perimeter that overlaps with chunks reserved by other parties
+                        // Skip this check if the chunk itself is reserved by the selected party (we can claim our own reserved chunks)
+                        if (Main.CONFIG.get().isEnablePerimeterReservation() && !isOwnReserved &&
+                            ClaimManager.getInstance().wouldPerimeterOverlapOtherReserved(dimension, x, z, selectedParty.getId())) {
+                            playerInstance.sendMessage(CommandMessages.CHUNK_RESERVED_BY_OTHER_PARTY);
+                            this.sendUpdate();
+                            return;
+                        }
+                        
+                        // Check if party has any claims - if yes, new chunk must be adjacent OR be a reserved chunk by the same party (only if restriction is enabled)
+                        if (Main.CONFIG.get().isEnableAdjacentChunkRestriction() && 
+                            ClaimManager.getInstance().getAmountOfClaims(selectedParty) > 0) {
+                            boolean isAdjacent = ClaimManager.getInstance().isAdjacentToPartyClaims(dimension, x, z, selectedParty.getId());
+                            if (!isAdjacent && !isOwnReserved) {
+                                playerInstance.sendMessage(CommandMessages.CHUNK_NOT_ADJACENT);
+                                this.sendUpdate();
+                                return;
+                            }
+                        }
+                        
+                        if (ClaimManager.getInstance().hasEnoughClaimsLeft(selectedParty)) {
+                            var chunkInfo = ClaimManager.getInstance().claimChunkBy(dimension, x, z, selectedParty, playerInstance, playerRef);
+                            ClaimManager.getInstance().queueMapUpdate(playerInstance.getWorld(), x, z);
+                        }
                     }
                 } else {
                     var chunk = ClaimManager.getInstance().getChunk(dimension, x, z);
-                    if ((chunk == null || ClaimManager.getInstance().getPartyById(chunk.getPartyOwner()) == null) && ClaimManager.getInstance().hasEnoughClaimsLeft(playerParty)) {
-                        var chunkInfo = ClaimManager.getInstance().claimChunkBy(dimension, x, z, playerParty, playerInstance, playerRef);
-                        ClaimManager.getInstance().queueMapUpdate(playerInstance.getWorld(), x, z);
+                    if ((chunk == null || ClaimManager.getInstance().getPartyById(chunk.getPartyOwner()) == null)) {
+                        // Check if chunk is reserved by player's party - if so, allow claiming it
+                        boolean isOwnReserved = ClaimManager.getInstance().isReservedByOwnParty(dimension, x, z, playerParty.getId());
+                        
+                        // Check if chunk is reserved by another party (only if perimeter reservation is enabled)
+                        if (Main.CONFIG.get().isEnablePerimeterReservation() && !isOwnReserved &&
+                            ClaimManager.getInstance().isReservedByOtherParty(dimension, x, z, playerParty.getId())) {
+                            playerInstance.sendMessage(CommandMessages.CHUNK_RESERVED_BY_OTHER_PARTY);
+                            this.sendUpdate();
+                            return;
+                        }
+                        
+                        // Check if claiming this chunk would create a perimeter that overlaps with chunks reserved by other parties
+                        // Skip this check if the chunk itself is reserved by the player's party (we can claim our own reserved chunks)
+                        if (Main.CONFIG.get().isEnablePerimeterReservation() && !isOwnReserved &&
+                            ClaimManager.getInstance().wouldPerimeterOverlapOtherReserved(dimension, x, z, playerParty.getId())) {
+                            playerInstance.sendMessage(CommandMessages.CHUNK_RESERVED_BY_OTHER_PARTY);
+                            this.sendUpdate();
+                            return;
+                        }
+                        
+                        // Check if party has any claims - if yes, new chunk must be adjacent OR be a reserved chunk by the same party (only if restriction is enabled)
+                        if (Main.CONFIG.get().isEnableAdjacentChunkRestriction() && 
+                            ClaimManager.getInstance().getAmountOfClaims(playerParty) > 0) {
+                            boolean isAdjacent = ClaimManager.getInstance().isAdjacentToPartyClaims(dimension, x, z, playerParty.getId());
+                            if (!isAdjacent && !isOwnReserved) {
+                                playerInstance.sendMessage(CommandMessages.CHUNK_NOT_ADJACENT);
+                                this.sendUpdate();
+                                return;
+                            }
+                        }
+                        
+                        if (ClaimManager.getInstance().hasEnoughClaimsLeft(playerParty)) {
+                            var chunkInfo = ClaimManager.getInstance().claimChunkBy(dimension, x, z, playerParty, playerInstance, playerRef);
+                            ClaimManager.getInstance().queueMapUpdate(playerInstance.getWorld(), x, z);
+                        }
                     }
                 }
             }
@@ -157,6 +224,8 @@ public class ChunkInfoGui extends InteractiveCustomUIPage<ChunkInfoGui.ChunkInfo
             for (int x = 0; x <= 8*2; x++) {
                 uiCommandBuilder.append("#ChunkCards[" + z  + "]", "Pages/Buuz135_SimpleClaims_ChunkEntry.ui");
                 var chunk = ClaimManager.getInstance().getChunk(dimension, chunkX + x - 8, chunkZ + z - 8);
+                var reservedChunk = Main.CONFIG.get().isEnablePerimeterReservation() ? 
+                    ClaimManager.getInstance().getReservedChunk(dimension, chunkX + x - 8, chunkZ + z - 8) : null;
                 if ((z - 8) == 0 && (x - 8) == 0) {
                     uiCommandBuilder.set("#ChunkCards[" + z + "][" + x + "].Text", "+");
                 }
@@ -186,6 +255,32 @@ public class ChunkInfoGui extends InteractiveCustomUIPage<ChunkInfoGui.ChunkInfo
                             uiEventBuilder.addEventBinding(CustomUIEventBindingType.Activating, "#ChunkCards[" + z + "][" + x + "]", EventData.of("Action", "LeftClicking:" + (chunkX + x - 8) + ":" + (chunkZ + z - 8)));
                         } else {
                             tooltip = tooltip.nl().nl().append(Message.raw("*Create a party to claim*").bold(true).color(Color.GRAY));
+                        }
+                        uiCommandBuilder.set("#ChunkCards[" + z + "][" + x + "].TooltipTextSpans", tooltip.build());
+                    }
+                } else if (reservedChunk != null) {
+                    // Show reserved chunk (perimeter)
+                    var reservedPartyInfo = ClaimManager.getInstance().getPartyById(reservedChunk.getReservedBy());
+                    if (reservedPartyInfo != null) {
+                        var color = new Color(reservedPartyInfo.getColor());
+                        // Make it darker and more transparent for reserved chunks
+                        color = new Color(Math.max(0, color.getRed() - 60), Math.max(0, color.getGreen() - 60), Math.max(0, color.getBlue() - 60), 100);
+                        uiCommandBuilder.set("#ChunkCards[" + z + "][" + x + "].Background.Color", ColorParseUtil.colorToHexAlpha(color));
+                        uiCommandBuilder.set("#ChunkCards[" + z + "][" + x + "].OutlineColor", ColorParseUtil.colorToHexAlpha(color));
+                        uiCommandBuilder.set("#ChunkCards[" + z + "][" + x + "].OutlineSize", 1);
+                        var tooltip = MessageHelper.multiLine()
+                                .append(Message.raw("Reserved by: ").bold(true).color(hytaleGold))
+                                .append(Message.raw(reservedPartyInfo.getName())).nl()
+                                .append(Message.raw("This chunk is part of the perimeter").italic(true).color(Color.GRAY));
+                        if (playerParty != null && playerParty.getId().equals(reservedPartyInfo.getId())) {
+                            tooltip = tooltip.nl().append(Message.raw("(Your perimeter)").color(Color.GREEN.darker()));
+                            // Allow claiming own reserved chunks
+                            if (canPlayerClaim) {
+                                tooltip = tooltip.nl().nl().append(Message.raw("*Left Click to claim*").bold(true).color(Color.GRAY));
+                                uiEventBuilder.addEventBinding(CustomUIEventBindingType.Activating, "#ChunkCards[" + z + "][" + x + "]", EventData.of("Action", "LeftClicking:" + (chunkX + x - 8) + ":" + (chunkZ + z - 8)));
+                            }
+                        } else {
+                            tooltip = tooltip.nl().append(Message.raw("Cannot claim this chunk").bold(true).color(Color.RED.darker()));
                         }
                         uiCommandBuilder.set("#ChunkCards[" + z + "][" + x + "].TooltipTextSpans", tooltip.build());
                     }

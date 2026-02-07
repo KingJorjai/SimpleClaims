@@ -3,6 +3,7 @@ package com.buuz135.simpleclaims.map;
 import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.claim.ClaimManager;
 import com.buuz135.simpleclaims.claim.chunk.ChunkInfo;
+import com.buuz135.simpleclaims.claim.chunk.ReservedChunk;
 import com.buuz135.simpleclaims.claim.party.PartyInfo;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.util.ChunkUtil;
@@ -21,6 +22,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class CustomImageBuilder {
@@ -275,6 +277,12 @@ public class CustomImageBuilder {
         if (claimedChunk != null) {
             partyInfo = ClaimManager.getInstance().getPartyById(claimedChunk.getPartyOwner());
         }
+        var reservedChunk = Main.CONFIG.get().isEnablePerimeterReservation() ? 
+            ClaimManager.getInstance().getReservedChunk(this.worldChunk.getWorld().getName(), this.worldChunk.getX(), this.worldChunk.getZ()) : null;
+        PartyInfo reservedPartyInfo = null;
+        if (reservedChunk != null) {
+            reservedPartyInfo = ClaimManager.getInstance().getPartyById(reservedChunk.getReservedBy());
+        }
         var nearbyChunks = new ChunkInfo[]{
                 ClaimManager.getInstance().getChunk(this.worldChunk.getWorld().getName(), this.worldChunk.getX(), this.worldChunk.getZ() + 1), //NORTH
                 ClaimManager.getInstance().getChunk(this.worldChunk.getWorld().getName(), this.worldChunk.getX(), this.worldChunk.getZ() - 1), //SOUTH
@@ -318,13 +326,24 @@ public class CustomImageBuilder {
                 if (partyInfo != null) {
                     var isBorder = false;
                     var borderSize = 2;
-                    if ((ix <= borderSize && (nearbyChunks[3] == null || !nearbyChunks[3].getPartyOwner().equals(partyInfo.getId()))) //WEST
-                            || (ix >= this.image.width - borderSize - 1 && (nearbyChunks[2] == null || !nearbyChunks[2].getPartyOwner().equals(partyInfo.getId()))) //EAST
-                            || (iz <= borderSize && (nearbyChunks[1] == null || !nearbyChunks[1].getPartyOwner().equals(partyInfo.getId()))) // NORTH
-                            || (iz >= this.image.height - borderSize - 1 && (nearbyChunks[0] == null || !nearbyChunks[0].getPartyOwner().equals(partyInfo.getId())))) {
+                    UUID partyId = claimedChunk.getPartyOwner();
+                    if ((ix <= borderSize && (nearbyChunks[3] == null || !nearbyChunks[3].getPartyOwner().equals(partyId))) //WEST
+                            || (ix >= this.image.width - borderSize - 1 && (nearbyChunks[2] == null || !nearbyChunks[2].getPartyOwner().equals(partyId))) //EAST
+                            || (iz <= borderSize && (nearbyChunks[1] == null || !nearbyChunks[1].getPartyOwner().equals(partyId))) // NORTH
+                            || (iz >= this.image.height - borderSize - 1 && (nearbyChunks[0] == null || !nearbyChunks[0].getPartyOwner().equals(partyId)))) {
                         isBorder = true;
                     }
                     getForceBlockColor(blockId, partyInfo.getColor(), this.outColor, isBorder);
+                } else if (reservedPartyInfo != null) {
+                    // Show reserved chunks with a darker/more transparent color
+                    int reservedColor = reservedPartyInfo.getColor();
+                    // Make it darker and more transparent
+                    java.awt.Color color = new java.awt.Color(reservedColor);
+                    int r = Math.max(0, color.getRed() - 60);
+                    int g = Math.max(0, color.getGreen() - 60);
+                    int b = Math.max(0, color.getBlue() - 60);
+                    int darkerColor = (r << 16) | (g << 8) | b;
+                    getForceBlockColor(blockId, darkerColor, this.outColor, false);
                 }
                 //-
 
