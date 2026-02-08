@@ -11,6 +11,7 @@ public class SimpleClaimsConfig {
     private int MaxPartyMembers = -1;
     private int MaxPartyAllies = -1;
     private int PartyInactivityHours = -1;
+    private boolean ScaleClaimLimitByMembers = false;
     private boolean NotifyPartyChatToggling = true;
     private boolean DefaultPartyBlockPlaceEnabled = false;
     private boolean DefaultPartyBlockBreakEnabled = false;
@@ -221,6 +222,10 @@ public class SimpleClaimsConfig {
 
     public boolean isNotifyPartyChatToggling() {
         return NotifyPartyChatToggling;
+    }
+
+    public boolean isScaleClaimLimitByMembers() {
+        return ScaleClaimLimitByMembers;
     }
 
 }

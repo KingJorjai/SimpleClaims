@@ -74,6 +74,10 @@ public class PartyInfo {
         return memberSet.toArray(new UUID[0]);
     }
 
+    public int getTotalMemberCount() {
+        return 1 + memberSet.size(); // Owner + members
+    }
+
     public void setOwner(UUID owner) {
         this.owner = owner;
     }
@@ -128,13 +132,25 @@ public class PartyInfo {
     }
 
     public int getMaxClaimAmount(){
+        int baseAmount;
         var override = this.getOverride(PartyOverrides.CLAIM_CHUNK_AMOUNT);
         if (override != null) {
-            return (Integer) override.getValue().getTypedValue();
+            baseAmount = (Integer) override.getValue().getTypedValue();
+        } else {
+            var amount = Permissions.getPermissionClaimAmount(owner);
+            if (amount != -1) {
+                baseAmount = amount;
+            } else {
+                baseAmount = Main.CONFIG.get().getDefaultPartyClaimsAmount();
+            }
         }
-        var amount = Permissions.getPermissionClaimAmount(owner);
-        if (amount != -1) return amount;
-        return Main.CONFIG.get().getDefaultPartyClaimsAmount();
+        
+        // Scale by member count if enabled
+        if (Main.CONFIG.get().isScaleClaimLimitByMembers()) {
+            return baseAmount * getTotalMemberCount();
+        }
+        
+        return baseAmount;
     }
 
     public boolean isBlockPlaceEnabled(){
