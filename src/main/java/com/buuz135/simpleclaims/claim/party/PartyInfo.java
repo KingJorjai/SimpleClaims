@@ -326,6 +326,10 @@ public class PartyInfo {
         return overrideMap.get(type);
     }
 
+    public void removeOverride(String type) {
+        overrideMap.remove(type);
+    }
+
     public ModifiedTracking getCreatedTracked() {
         return createdTracked;
     }
