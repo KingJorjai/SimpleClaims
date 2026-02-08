@@ -33,7 +33,7 @@ public class PartyInfo {
         this.memberSet.addAll(Arrays.asList(members));
         this.color = color;
         this.overrideMap = new HashMap<>();
-        setOverride(new PartyOverride(PartyOverrides.CLAIM_CHUNK_AMOUNT, new PartyOverride.PartyOverrideValue("integer", Main.CONFIG.get().getDefaultPartyClaimsAmount())));
+        // Don't set default CLAIM_CHUNK_AMOUNT override - calculate dynamically from config/permissions
         setOverride(new PartyOverride(PartyOverrides.PARTY_PROTECTION_PLACE_BLOCKS, new PartyOverride.PartyOverrideValue("bool", Main.CONFIG.get().isDefaultPartyBlockPlaceEnabled())));
         setOverride(new PartyOverride(PartyOverrides.PARTY_PROTECTION_BREAK_BLOCKS, new PartyOverride.PartyOverrideValue("bool", Main.CONFIG.get().isDefaultPartyBlockBreakEnabled())));
         setOverride(new PartyOverride(PartyOverrides.PARTY_PROTECTION_INTERACT, new PartyOverride.PartyOverrideValue("bool", Main.CONFIG.get().isDefaultPartyBlockInteractEnabled())));
@@ -76,6 +76,13 @@ public class PartyInfo {
 
     public int getTotalMemberCount() {
         return 1 + memberSet.size(); // Owner + members
+    }
+
+    public List<UUID> getAllMembers() {
+        List<UUID> allMembers = new ArrayList<>();
+        allMembers.add(owner);
+        allMembers.addAll(memberSet);
+        return allMembers;
     }
 
     public void setOwner(UUID owner) {
@@ -131,26 +138,78 @@ public class PartyInfo {
         ClaimManager.getInstance().getPlayerToParty().remove(uuid);
     }
 
-    public int getMaxClaimAmount(){
-        int baseAmount;
-        var override = this.getOverride(PartyOverrides.CLAIM_CHUNK_AMOUNT);
-        if (override != null) {
-            baseAmount = (Integer) override.getValue().getTypedValue();
-        } else {
+    public int getBaseClaimAmount() {
+        // Check for admin base override first
+        var baseOverride = this.getOverride(PartyOverrides.CLAIM_CHUNK_BASE);
+        if (baseOverride != null) {
+            int baseValue = (Integer) baseOverride.getValue().getTypedValue();
+            // If scaling enabled, multiply admin override by member count
+            if (Main.CONFIG.get().isScaleClaimLimitByMembers()) {
+                return baseValue * getTotalMemberCount();
+            }
+            return baseValue;
+        }
+        
+        // Check for legacy CLAIM_CHUNK_AMOUNT override (backward compatibility)
+        var legacyOverride = this.getOverride(PartyOverrides.CLAIM_CHUNK_AMOUNT);
+        if (legacyOverride != null) {
+            int legacyValue = (Integer) legacyOverride.getValue().getTypedValue();
+            // Legacy overrides are treated as absolute (no scaling)
+            return legacyValue;
+        }
+        
+        // No override - calculate from permissions/config
+        if (!Main.CONFIG.get().isScaleClaimLimitByMembers()) {
+            // Legacy mode: only owner's permission or config default
             var amount = Permissions.getPermissionClaimAmount(owner);
             if (amount != -1) {
-                baseAmount = amount;
-            } else {
-                baseAmount = Main.CONFIG.get().getDefaultPartyClaimsAmount();
+                return amount;
             }
+            return Main.CONFIG.get().getDefaultPartyClaimsAmount();
+        } else {
+            // Scaling mode: sum all members' permissions or config defaults
+            int total = 0;
+            for (UUID member : getAllMembers()) {
+                var amount = Permissions.getPermissionClaimAmount(member);
+                if (amount != -1) {
+                    total += amount;
+                } else {
+                    total += Main.CONFIG.get().getDefaultPartyClaimsAmount();
+                }
+            }
+            return total;
         }
-        
-        // Scale by member count if enabled
-        if (Main.CONFIG.get().isScaleClaimLimitByMembers()) {
-            return baseAmount * getTotalMemberCount();
+    }
+
+    public int getBonusChunks() {
+        var bonusOverride = this.getOverride(PartyOverrides.BONUS_CLAIM_CHUNKS);
+        if (bonusOverride != null) {
+            return (Integer) bonusOverride.getValue().getTypedValue();
         }
-        
-        return baseAmount;
+        return 0;
+    }
+
+    public int getMaxBonusLimit() {
+        if (!Main.CONFIG.get().isScaleClaimLimitByMembers()) {
+            // Legacy mode: config max only
+            return Main.CONFIG.get().getMaxAddChunkAmount();
+        } else {
+            // Scaling mode: sum all members' max permissions or config max
+            int total = 0;
+            for (UUID member : getAllMembers()) {
+                var maxAmount = Permissions.getPermissionMaxAddChunkAmount(member);
+                if (maxAmount != -1 && maxAmount > Main.CONFIG.get().getMaxAddChunkAmount()) {
+                    total += maxAmount;
+                } else {
+                    total += Main.CONFIG.get().getMaxAddChunkAmount();
+                }
+            }
+            return total;
+        }
+    }
+
+    public int getMaxClaimAmount(){
+        return getBaseClaimAmount() + getBonusChunks();
     }
 
     public boolean isBlockPlaceEnabled(){
@@ -242,8 +301,21 @@ public class PartyInfo {
     }
 
     public void setOverride(PartyOverride override){
+        // Remove override if it matches default value (optimization)
         if (override.getType().equals(PartyOverrides.CLAIM_CHUNK_AMOUNT)
                 && (int) override.getValue().tryGetTypedValue().orElse(0) == Main.CONFIG.get().getDefaultPartyClaimsAmount()) {
+            overrideMap.remove(override.getType());
+            return;
+        }
+        // Remove CLAIM_CHUNK_BASE if it equals default
+        if (override.getType().equals(PartyOverrides.CLAIM_CHUNK_BASE)
+                && (int) override.getValue().tryGetTypedValue().orElse(0) == Main.CONFIG.get().getDefaultPartyClaimsAmount()) {
+            overrideMap.remove(override.getType());
+            return;
+        }
+        // Remove BONUS_CLAIM_CHUNKS if it's 0
+        if (override.getType().equals(PartyOverrides.BONUS_CLAIM_CHUNKS)
+                && (int) override.getValue().tryGetTypedValue().orElse(0) == 0) {
             overrideMap.remove(override.getType());
             return;
         }
