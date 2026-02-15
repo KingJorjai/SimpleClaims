@@ -49,6 +49,7 @@ public class SimpleClaimsConfig {
     private boolean CreativeModeBypassProtection = false;
     private boolean EnableAdjacentChunkRestriction = false;
     private boolean EnablePerimeterReservation = false;
+    private boolean ShowPerimeterReservationOnTheMap = false;
 
     private String[] BlocksThatIgnoreInteractRestrictions = new String[]{"gravestone"};
 
@@ -230,6 +231,10 @@ public class SimpleClaimsConfig {
 
     public boolean isEnablePerimeterReservation() {
         return EnablePerimeterReservation;
+    }
+
+    public boolean isShowPerimeterReservationOnTheMap() {
+        return ShowPerimeterReservationOnTheMap;
     }
 
 }

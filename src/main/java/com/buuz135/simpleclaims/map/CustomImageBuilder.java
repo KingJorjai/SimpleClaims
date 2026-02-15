@@ -277,7 +277,7 @@ public class CustomImageBuilder {
         if (claimedChunk != null) {
             partyInfo = ClaimManager.getInstance().getPartyById(claimedChunk.getPartyOwner());
         }
-        var reservedChunk = Main.CONFIG.get().isEnablePerimeterReservation() ? 
+        var reservedChunk = Main.CONFIG.get().isEnablePerimeterReservation() && Main.CONFIG.get().isShowPerimeterReservationOnTheMap() ?
             ClaimManager.getInstance().getReservedChunk(this.worldChunk.getWorld().getName(), this.worldChunk.getX(), this.worldChunk.getZ()) : null;
         PartyInfo reservedPartyInfo = null;
         if (reservedChunk != null) {
@@ -333,17 +333,9 @@ public class CustomImageBuilder {
                             || (iz >= this.image.height - borderSize - 1 && (nearbyChunks[0] == null || !nearbyChunks[0].getPartyOwner().equals(partyId)))) {
                         isBorder = true;
                     }
-                    getForceBlockColor(blockId, partyInfo.getColor(), this.outColor, isBorder);
+                    getForceBlockColor(blockId, partyInfo.getColor(), this.outColor, isBorder, false);
                 } else if (reservedPartyInfo != null) {
-                    // Show reserved chunks with a darker/more transparent color
-                    int reservedColor = reservedPartyInfo.getColor();
-                    // Make it darker and more transparent
-                    java.awt.Color color = new java.awt.Color(reservedColor);
-                    int r = Math.max(0, color.getRed() - 60);
-                    int g = Math.max(0, color.getGreen() - 60);
-                    int b = Math.max(0, color.getBlue() - 60);
-                    int darkerColor = (r << 16) | (g << 8) | b;
-                    getForceBlockColor(blockId, darkerColor, this.outColor, false);
+                    getForceBlockColor(blockId, reservedPartyInfo.getColor(), this.outColor, false, true);
                 }
                 //-
 
@@ -423,12 +415,13 @@ public class CustomImageBuilder {
         outColor.a = 255;
     }
 
-    private static void getForceBlockColor(int blockId, int partyColor, @Nonnull CustomImageBuilder.Color outColor, boolean isBorder) {
+    private static void getForceBlockColor(int blockId, int partyColor, @Nonnull CustomImageBuilder.Color outColor, boolean isBorder, boolean isReserved) {
         int biomeTintR = partyColor >> 16 & 255;
         int biomeTintG = partyColor >> 8 & 255;
         int biomeTintB = partyColor >> 0 & 255;
 
         float overlayAlpha = isBorder ? 0.75f : 0.4f;
+        overlayAlpha = isReserved ? 0.15f : overlayAlpha;
 
         outColor.r = (int) (outColor.r * (1 - overlayAlpha) + biomeTintR * overlayAlpha);
         outColor.g = (int) (outColor.g * (1 - overlayAlpha) + biomeTintG * overlayAlpha);
