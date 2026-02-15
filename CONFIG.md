@@ -76,6 +76,10 @@ Global settings that affect claiming and protection across the server.
   claim protections.
 - **BlocksThatIgnoreInteractRestrictions** (String Array, Default: `["gravestone"]`): A list of block IDs that can
   always be interacted with, even in claimed chunks where interactions are otherwise restricted.
+- **EnableAdjacentChunkRestriction** (Boolean, Default: `false`): If `true`, players can only claim chunks that are
+  adjacent to their existing claims.
+- **EnablePerimeterReservation** (Boolean, Default: `false`): If `true`, a perimeter around claimed chunks will be
+  reserved, preventing others from claiming too close.
 - **PartyInactivityHours** (Integer, Default: `-1`): The number of hours a party can be inactive before it is
   automatically disbanded. Use `-1` to disable this feature. All members of the party must be inactive for this to
   trigger.
@@ -90,6 +94,8 @@ Settings related to the user interface and visual feedback.
   map.
 - **RenderClaimNamesOnWorldMap** (Boolean, Default: `false`): If `true`, the name of the party that owns a chunk and a
   colored border will be rendered directly on the world map.
+- **ShowPerimeterReservationOnTheMap** (Boolean, Default: `false`): If `true`, the reserved perimeter will be visible on
+  the world map.
 - **NotifyPartyChatToggling** (Boolean, Default: `true`): If `true`, all party members will be notified when someone
   toggles their party chat.
 

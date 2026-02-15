@@ -1,9 +1,11 @@
 package com.buuz135.simpleclaims.commands.subcommand.chunk;
 
+import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.claim.ClaimManager;
 import com.buuz135.simpleclaims.claim.party.PartyOverrides;
 import com.buuz135.simpleclaims.commands.CommandMessages;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
@@ -55,6 +57,36 @@ public class ClaimChunkCommand extends AbstractAsyncCommand {
                         player.sendMessage(chunk.getPartyOwner().equals(party.getId()) ? CommandMessages.ALREADY_CLAIMED_BY_YOU : CommandMessages.ALREADY_CLAIMED_BY_ANOTHER_PLAYER);
                         return;
                     }
+                    
+                    int chunkX = ChunkUtil.chunkCoordinate((int) playerRef.getTransform().getPosition().getX());
+                    int chunkZ = ChunkUtil.chunkCoordinate((int) playerRef.getTransform().getPosition().getZ());
+
+                    
+                    // Check if chunk is reserved by another party (only if perimeter reservation is enabled)
+                    if (Main.CONFIG.get().isEnablePerimeterReservation() &&
+                        ClaimManager.getInstance().isReservedByOtherParty(player.getWorld().getName(), chunkX, chunkZ, party.getId())) {
+                        player.sendMessage(CommandMessages.CHUNK_RESERVED_BY_OTHER_PARTY);
+                        return;
+                    }
+                    
+                    // Check if claiming this chunk would create a perimeter that overlaps with chunks reserved by other parties
+                    // Skip this check if the chunk itself is reserved by our party (we can claim our own reserved chunks)
+                    if (Main.CONFIG.get().isEnablePerimeterReservation() &&
+                        ClaimManager.getInstance().wouldPerimeterOverlapOtherReserved(player.getWorld().getName(), chunkX, chunkZ, party.getId())) {
+                        player.sendMessage(CommandMessages.CHUNK_RESERVED_BY_OTHER_PARTY);
+                        return;
+                    }
+                    
+                    // Check if player has any claims - if yes, new chunk must be adjacent OR be a reserved chunk by the same party (only if restriction is enabled)
+                    if (Main.CONFIG.get().isEnableAdjacentChunkRestriction() && 
+                        ClaimManager.getInstance().getAmountOfClaims(party) > 0) {
+                        boolean isAdjacent = ClaimManager.getInstance().isAdjacentToPartyClaims(player.getWorld().getName(), chunkX, chunkZ, party.getId());
+                        if (!isAdjacent) {
+                            player.sendMessage(CommandMessages.CHUNK_NOT_ADJACENT);
+                            return;
+                        }
+                    }
+                    
                     if (!ClaimManager.getInstance().hasEnoughClaimsLeft(party)) {
                         player.sendMessage(CommandMessages.NOT_ENOUGH_CHUNKS);
                         return;

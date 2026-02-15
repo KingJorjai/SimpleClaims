@@ -6,6 +6,7 @@ import com.buuz135.simpleclaims.commands.CommandMessages;
 import com.buuz135.simpleclaims.files.*;
 import com.buuz135.simpleclaims.util.FileUtils;
 import com.buuz135.simpleclaims.claim.chunk.ChunkInfo;
+import com.buuz135.simpleclaims.claim.chunk.ReservedChunk;
 import com.buuz135.simpleclaims.claim.party.PartyInfo;
 import com.buuz135.simpleclaims.claim.player_name.PlayerNameTracker;
 import com.buuz135.simpleclaims.claim.tracking.ModifiedTracking;
@@ -43,6 +44,7 @@ public class ClaimManager {
     private PlayerNameTracker playerNameTracker;
     private HashMap<String, PartyInfo> parties;
     private HashMap<String, HashMap<String, ChunkInfo>> chunks;
+    private HashMap<String, HashMap<String, ReservedChunk>> reservedChunks;
     private Set<UUID> adminOverrides;
     private DatabaseManager databaseManager;
     private HashMap<String, LongSet> mapUpdateQueue;
@@ -60,6 +62,7 @@ public class ClaimManager {
         this.partyClaimCounts = new ConcurrentHashMap<>();
         this.parties = new HashMap<>();
         this.chunks = new HashMap<>();
+        this.reservedChunks = new HashMap<>();
         this.playerNameTracker = new PlayerNameTracker();
         this.adminOverrides = new HashSet<>();
         this.databaseManager = new DatabaseManager(logger);
@@ -117,6 +120,9 @@ public class ClaimManager {
 
         logger.at(Level.INFO).log("Loading admin overrides data from DB...");
         this.adminOverrides.addAll(this.databaseManager.loadAdminOverrides());
+
+        logger.at(Level.INFO).log("Loading reserved chunks data from DB...");
+        this.reservedChunks.putAll(this.databaseManager.loadReservedChunks());
 
     }
 
@@ -216,7 +222,26 @@ public class ClaimManager {
         chunkDimension.put(ChunkInfo.formatCoordinates(chunkX, chunkZ), chunkInfo);
         chunkInfo.setCreatedTracked(new ModifiedTracking(playerRef.getUuid(), owner.getDisplayName(), LocalDateTime.now().toString()));
         partyClaimCounts.merge(partyInfo.getId(), 1, Integer::sum);
-        this.saveClaim(dimension, chunkInfo);
+        
+        // Remove this chunk from reserved chunks if it was reserved by this party
+        if (Main.CONFIG.get().isEnablePerimeterReservation()) {
+            var reservedDimension = this.reservedChunks.get(dimension);
+            if (reservedDimension != null) {
+                ReservedChunk reserved = reservedDimension.get(ReservedChunk.formatCoordinates(chunkX, chunkZ));
+                if (reserved != null && reserved.getReservedBy().equals(partyInfo.getId())) {
+                    reservedDimension.remove(ReservedChunk.formatCoordinates(chunkX, chunkZ));
+                    this.runAsync(() -> databaseManager.deleteReservedChunk(dimension, chunkX, chunkZ));
+                }
+            }
+        }
+        
+        this.runAsync(() -> databaseManager.saveClaim(dimension, chunkInfo));
+        
+        // Calculate and reserve perimeter chunks if enabled
+        if (Main.CONFIG.get().isEnablePerimeterReservation()) {
+            updateReservedPerimeter(dimension, partyInfo.getId());
+        }
+        
         return chunkInfo;
     }
 
@@ -239,8 +264,14 @@ public class ClaimManager {
         if (chunkMap != null) {
             ChunkInfo removed = chunkMap.remove(ChunkInfo.formatCoordinates(chunkX, chunkZ));
             if (removed != null) {
-                partyClaimCounts.computeIfPresent(removed.getPartyOwner(), (k, v) -> v > 1 ? v - 1 : null);
+                UUID partyId = removed.getPartyOwner();
+                partyClaimCounts.computeIfPresent(partyId, (k, v) -> v > 1 ? v - 1 : null);
                 this.runAsync(() -> databaseManager.deleteClaim(dimension, chunkX, chunkZ));
+                
+                // Recalculate reserved perimeter after unclaiming if enabled
+                if (Main.CONFIG.get().isEnablePerimeterReservation()) {
+                    updateReservedPerimeter(dimension, partyId);
+                }
             }
         }
     }
@@ -340,6 +371,17 @@ public class ClaimManager {
             }
             return matches;
         }));
+        
+        // Remove all reserved chunks for this party
+        this.reservedChunks.forEach((dimension, reservedMap) -> {
+            reservedMap.values().removeIf(reserved -> reserved.getReservedBy().equals(partyInfo.getId()));
+        });
+        this.runAsync(() -> {
+            this.chunks.forEach((dimension, chunkInfos) -> {
+                databaseManager.deleteReservedChunksByParty(dimension, partyInfo.getId());
+            });
+        });
+        
         partyClaimCounts.remove(partyInfo.getId());
 
         this.parties.remove(partyInfo.getId().toString());
@@ -379,11 +421,15 @@ public class ClaimManager {
         if (!mapUpdateQueue.containsKey(world.getName())) {
             mapUpdateQueue.put(world.getName(), new LongOpenHashSet());
         }
+        int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
+        int[] dz = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+        for (int i = 0; i < dx.length; i++) {
+            int adjX = chunkX + dx[i];
+            int adjZ = chunkZ + dz[i];
+            mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(adjX, adjZ));
+        }
         mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX, chunkZ));
-        mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX + 1, chunkZ));
-        mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX - 1, chunkZ));
-        mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX, chunkZ + 1));
-        mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX, chunkZ - 1));
         this.setNeedsMapUpdate(world.getName());
     }
 
@@ -438,5 +484,193 @@ public class ClaimManager {
 
     public void runAsync(Runnable runnable) {
         this.executorService.submit(runnable);
+    }
+
+    /**
+     * Checks if a chunk is adjacent (shares at least one side) to any chunk claimed by the party
+     */
+    public boolean isAdjacentToPartyClaims(String dimension, int chunkX, int chunkZ, UUID partyId) {
+        // Check all 4 directions (north, south, east, west)
+        ChunkInfo[] adjacentChunks = {
+            getChunk(dimension, chunkX, chunkZ + 1),     // North
+            getChunk(dimension, chunkX, chunkZ - 1),     // South
+            getChunk(dimension, chunkX + 1, chunkZ),    // East
+            getChunk(dimension, chunkX - 1, chunkZ)     // West
+        };
+        
+        for (ChunkInfo adjacent : adjacentChunks) {
+            if (adjacent != null && adjacent.getPartyOwner().equals(partyId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks if a chunk is reserved (perimeter chunk) by another party
+     */
+    public boolean isReservedByOtherParty(String dimension, int chunkX, int chunkZ, UUID excludePartyId) {
+        var reservedDimension = this.reservedChunks.get(dimension);
+        if (reservedDimension == null) return false;
+        
+        ReservedChunk reserved = reservedDimension.get(ReservedChunk.formatCoordinates(chunkX, chunkZ));
+        return reserved != null && !reserved.getReservedBy().equals(excludePartyId);
+    }
+
+    /**
+     * Checks if a chunk is reserved (perimeter chunk) by the same party
+     */
+    public boolean isReservedByOwnParty(String dimension, int chunkX, int chunkZ, UUID partyId) {
+        var reservedDimension = this.reservedChunks.get(dimension);
+        if (reservedDimension == null) return false;
+        
+        ReservedChunk reserved = reservedDimension.get(ReservedChunk.formatCoordinates(chunkX, chunkZ));
+        return reserved != null && reserved.getReservedBy().equals(partyId);
+    }
+
+    /**
+     * Checks if claiming a chunk would create a perimeter that overlaps with chunks reserved by other parties
+     */
+    public boolean wouldPerimeterOverlapOtherReserved(String dimension, int chunkX, int chunkZ, UUID partyId) {
+        if (!Main.CONFIG.get().isEnablePerimeterReservation()) {
+            return false;
+        }
+        
+        var reservedDimension = this.reservedChunks.get(dimension);
+        if (reservedDimension == null) return false;
+        
+        // Calculate what the perimeter would be for this new chunk
+        // Check all 8 directions (including diagonals for corners)
+        int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
+        int[] dz = {-1, -1, -1, 0, 0, 1, 1, 1};
+        
+        for (int i = 0; i < dx.length; i++) {
+            int adjX = chunkX + dx[i];
+            int adjZ = chunkZ + dz[i];
+            // Check if this adjacent chunk is already claimed by this party
+            ChunkInfo existingChunk = getChunk(dimension, adjX, adjZ);
+            if (existingChunk != null && existingChunk.getPartyOwner().equals(partyId)) {
+                continue; // Skip chunks already claimed by this party
+            }
+            
+            // Check if this adjacent chunk is reserved by another party
+            ReservedChunk reserved = reservedDimension.get(ReservedChunk.formatCoordinates(adjX, adjZ));
+            if (reserved != null && !reserved.getReservedBy().equals(partyId)) {
+                // This chunk would be in the perimeter and is already reserved by another party
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Gets the reserved chunk if it exists
+     */
+    @Nullable
+    public ReservedChunk getReservedChunk(String dimension, int chunkX, int chunkZ) {
+        var reservedDimension = this.reservedChunks.get(dimension);
+        if (reservedDimension == null) return null;
+        return reservedDimension.get(ReservedChunk.formatCoordinates(chunkX, chunkZ));
+    }
+
+    /**
+     * Calculates and updates the reserved perimeter chunks for a party
+     * This creates a protective border around all claimed chunks
+     */
+    private void updateReservedPerimeter(String dimension, UUID partyId) {
+        var chunkDimension = this.chunks.get(dimension);
+        if (chunkDimension == null) return;
+        
+        // Get all chunks claimed by this party in this dimension
+        Set<String> partyChunkCoords = new HashSet<>();
+        for (ChunkInfo chunk : chunkDimension.values()) {
+            if (chunk.getPartyOwner().equals(partyId)) {
+                partyChunkCoords.add(ChunkInfo.formatCoordinates(chunk.getChunkX(), chunk.getChunkZ()));
+            }
+        }
+        
+        // If no chunks claimed, remove all reserved chunks for this party
+        if (partyChunkCoords.isEmpty()) {
+            var reservedDimension = this.reservedChunks.get(dimension);
+            if (reservedDimension != null) {
+                List<ReservedChunk> toRemove = new ArrayList<>();
+                for (ReservedChunk reserved : reservedDimension.values()) {
+                    if (reserved.getReservedBy().equals(partyId)) {
+                        toRemove.add(reserved);
+                    }
+                }
+                for (ReservedChunk reserved : toRemove) {
+                    reservedDimension.remove(ReservedChunk.formatCoordinates(reserved.getChunkX(), reserved.getChunkZ()));
+                    this.runAsync(() -> databaseManager.deleteReservedChunk(dimension, reserved.getChunkX(), reserved.getChunkZ()));
+                }
+            }
+            return;
+        }
+        
+        // Calculate perimeter: all chunks adjacent to claimed chunks that are not themselves claimed
+        Set<String> perimeterCoords = new HashSet<>();
+        for (String coord : partyChunkCoords) {
+            String[] parts = coord.split(":");
+            int chunkX = Integer.parseInt(parts[0]);
+            int chunkZ = Integer.parseInt(parts[1]);
+            
+            // Check all 8 directions (including diagonals for corners)
+            int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
+            int[] dz = {-1, -1, -1, 0, 0, 1, 1, 1};
+            
+            for (int i = 0; i < dx.length; i++) {
+                int adjX = chunkX + dx[i];
+                int adjZ = chunkZ + dz[i];
+                String adjCoord = ChunkInfo.formatCoordinates(adjX, adjZ);
+                
+                // Only add if not already claimed by this party
+                if (!partyChunkCoords.contains(adjCoord)) {
+                    // Check if it's already claimed by another party - if so, don't reserve it
+                    ChunkInfo existingChunk = getChunk(dimension, adjX, adjZ);
+                    if (existingChunk == null || !existingChunk.getPartyOwner().equals(partyId)) {
+                        perimeterCoords.add(ReservedChunk.formatCoordinates(adjX, adjZ));
+                    }
+                }
+            }
+        }
+        
+        // Remove old reserved chunks that are no longer in the perimeter
+        var reservedDimension = this.reservedChunks.computeIfAbsent(dimension, k -> new HashMap<>());
+        List<ReservedChunk> toRemove = new ArrayList<>();
+        for (ReservedChunk reserved : reservedDimension.values()) {
+            if (reserved.getReservedBy().equals(partyId) && !perimeterCoords.contains(ReservedChunk.formatCoordinates(reserved.getChunkX(), reserved.getChunkZ()))) {
+                toRemove.add(reserved);
+            }
+        }
+        for (ReservedChunk reserved : toRemove) {
+            reservedDimension.remove(ReservedChunk.formatCoordinates(reserved.getChunkX(), reserved.getChunkZ()));
+            this.runAsync(() -> databaseManager.deleteReservedChunk(dimension, reserved.getChunkX(), reserved.getChunkZ()));
+        }
+        
+        // Add new reserved chunks
+        for (String coord : perimeterCoords) {
+            String[] parts = coord.split(":");
+            int chunkX = Integer.parseInt(parts[0]);
+            int chunkZ = Integer.parseInt(parts[1]);
+            
+            String formattedCoord = ReservedChunk.formatCoordinates(chunkX, chunkZ);
+            if (!reservedDimension.containsKey(formattedCoord)) {
+                ReservedChunk reserved = new ReservedChunk(partyId, chunkX, chunkZ);
+                reservedDimension.put(formattedCoord, reserved);
+                this.runAsync(() -> databaseManager.saveReservedChunk(dimension, reserved));
+            } else {
+                // Update if reserved by different party (shouldn't happen, but just in case)
+                ReservedChunk existing = reservedDimension.get(formattedCoord);
+                if (!existing.getReservedBy().equals(partyId)) {
+                    existing.setReservedBy(partyId);
+                    this.runAsync(() -> databaseManager.saveReservedChunk(dimension, existing));
+                }
+            }
+        }
+    }
+
+    public HashMap<String, HashMap<String, ReservedChunk>> getReservedChunks() {
+        return reservedChunks;
     }
 }

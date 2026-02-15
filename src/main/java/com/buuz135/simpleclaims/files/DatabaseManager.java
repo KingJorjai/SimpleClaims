@@ -1,6 +1,7 @@
 package com.buuz135.simpleclaims.files;
 
 import com.buuz135.simpleclaims.claim.chunk.ChunkInfo;
+import com.buuz135.simpleclaims.claim.chunk.ReservedChunk;
 import com.buuz135.simpleclaims.claim.party.PartyInfo;
 import com.buuz135.simpleclaims.claim.party.PartyOverride;
 import com.buuz135.simpleclaims.claim.player_name.PlayerNameTracker;
@@ -33,19 +34,52 @@ public class DatabaseManager {
         FileUtils.ensureMainDirectory();
         try {
             var sqliteFile = new File(FileUtils.DATABASE_PATH);
+            var parentDir = sqliteFile.getParentFile();
 
-            if (!sqliteFile.exists()) {
-                sqliteFile.createNewFile();
+            // Ensure parent directory exists
+            if (parentDir != null && !parentDir.exists()) {
+                boolean dirsCreated = parentDir.mkdirs();
+                if (!dirsCreated) {
+                    logger.at(Level.SEVERE).log("Failed to create database directory: " + parentDir.getAbsolutePath());
+                    throw new IOException("Cannot create database directory: " + parentDir.getAbsolutePath());
+                }
             }
 
-            this.connection = DriverManager.getConnection("jdbc:sqlite:" + FileUtils.DATABASE_PATH);
+            // Check if parent directory is writable
+            if (parentDir != null && !parentDir.canWrite()) {
+                logger.at(Level.SEVERE).log("Database directory is not writable: " + parentDir.getAbsolutePath());
+                throw new IOException("Database directory is not writable: " + parentDir.getAbsolutePath());
+            }
+
+            // Create database file if it doesn't exist
+            if (!sqliteFile.exists()) {
+                boolean fileCreated = sqliteFile.createNewFile();
+                if (!fileCreated) {
+                    logger.at(Level.SEVERE).log("Failed to create database file: " + sqliteFile.getAbsolutePath());
+                    throw new IOException("Cannot create database file: " + sqliteFile.getAbsolutePath());
+                }
+            }
+
+            // Check if file is writable
+            if (!sqliteFile.canWrite()) {
+                logger.at(Level.SEVERE).log("Database file is not writable: " + sqliteFile.getAbsolutePath());
+                throw new IOException("Database file is not writable: " + sqliteFile.getAbsolutePath());
+            }
+
+            String dbPath = sqliteFile.getAbsolutePath();
+            logger.at(Level.INFO).log("Connecting to database at: " + dbPath);
+            // SQLite JDBC should handle paths with spaces, but we ensure the path is absolute
+            this.connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
             try (Statement statement = connection.createStatement()) {
                 statement.execute("PRAGMA foreign_keys = ON;");
             }
             createTables();
+            logger.at(Level.INFO).log("Database initialized successfully");
         } catch (Exception e) {
             logger.at(Level.SEVERE).log("Error initializing database: " + e.getMessage());
+            logger.at(Level.SEVERE).log("Database path: " + FileUtils.DATABASE_PATH);
             e.printStackTrace();
+            this.connection = null;
         }
     }
 
@@ -124,6 +158,14 @@ public class DatabaseManager {
                     "value INTEGER," +
                     "PRIMARY KEY (party_id, target_uuid, permission)," +
                     "FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE" +
+                    ")");
+
+            statement.execute("CREATE TABLE IF NOT EXISTS reserved_chunks (" +
+                    "dimension TEXT," +
+                    "chunkX INTEGER," +
+                    "chunkZ INTEGER," +
+                    "reserved_by TEXT," +
+                    "PRIMARY KEY (dimension, chunkX, chunkZ)" +
                     ")");
 
             addColumnIfNotExists("name_cache", "last_seen", "INTEGER DEFAULT " + System.currentTimeMillis());
@@ -343,6 +385,10 @@ public class DatabaseManager {
 
     public Map<String, PartyInfo> loadParties() {
         Map<String, PartyInfo> parties = new HashMap<>();
+        if (connection == null) {
+            logger.at(Level.SEVERE).log("Cannot load parties: database connection is null");
+            return parties;
+        }
         try (Statement statement = connection.createStatement();
              ResultSet rs = statement.executeQuery("SELECT * FROM parties")) {
             while (rs.next()) {
@@ -461,6 +507,10 @@ public class DatabaseManager {
 
     public HashMap<String, HashMap<String, ChunkInfo>> loadClaims() {
         HashMap<String, HashMap<String, ChunkInfo>> claims = new HashMap<>();
+        if (connection == null) {
+            logger.at(Level.SEVERE).log("Cannot load claims: database connection is null");
+            return claims;
+        }
         try (Statement statement = connection.createStatement();
              ResultSet rs = statement.executeQuery("SELECT * FROM claims")) {
             while (rs.next()) {
@@ -497,6 +547,10 @@ public class DatabaseManager {
 
     public PlayerNameTracker loadNameCache() {
         PlayerNameTracker tracker = new PlayerNameTracker();
+        if (connection == null) {
+            logger.at(Level.SEVERE).log("Cannot load name cache: database connection is null");
+            return tracker;
+        }
         try (Statement statement = connection.createStatement();
              ResultSet rs = statement.executeQuery("SELECT * FROM name_cache")) {
             while (rs.next()) {
@@ -528,6 +582,10 @@ public class DatabaseManager {
 
     public Set<UUID> loadAdminOverrides() {
         Set<UUID> overrides = new HashSet<>();
+        if (connection == null) {
+            logger.at(Level.SEVERE).log("Cannot load admin overrides: database connection is null");
+            return overrides;
+        }
         try (Statement statement = connection.createStatement();
              ResultSet rs = statement.executeQuery("SELECT * FROM admin_overrides")) {
             while (rs.next()) {
@@ -537,5 +595,62 @@ public class DatabaseManager {
             e.printStackTrace();
         }
         return overrides;
+    }
+
+    public void saveReservedChunk(String dimension, ReservedChunk reservedChunk) {
+        try (PreparedStatement ps = connection.prepareStatement("REPLACE INTO reserved_chunks (dimension, chunkX, chunkZ, reserved_by) VALUES (?, ?, ?, ?)")) {
+            ps.setString(1, dimension);
+            ps.setInt(2, reservedChunk.getChunkX());
+            ps.setInt(3, reservedChunk.getChunkZ());
+            ps.setString(4, reservedChunk.getReservedBy().toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteReservedChunk(String dimension, int chunkX, int chunkZ) {
+        try (PreparedStatement ps = connection.prepareStatement("DELETE FROM reserved_chunks WHERE dimension = ? AND chunkX = ? AND chunkZ = ?")) {
+            ps.setString(1, dimension);
+            ps.setInt(2, chunkX);
+            ps.setInt(3, chunkZ);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void deleteReservedChunksByParty(String dimension, UUID partyId) {
+        try (PreparedStatement ps = connection.prepareStatement("DELETE FROM reserved_chunks WHERE dimension = ? AND reserved_by = ?")) {
+            ps.setString(1, dimension);
+            ps.setString(2, partyId.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public HashMap<String, HashMap<String, ReservedChunk>> loadReservedChunks() {
+        HashMap<String, HashMap<String, ReservedChunk>> reservedChunks = new HashMap<>();
+        if (connection == null) {
+            logger.at(Level.SEVERE).log("Cannot load reserved chunks: database connection is null");
+            return reservedChunks;
+        }
+        try (Statement statement = connection.createStatement();
+             ResultSet rs = statement.executeQuery("SELECT * FROM reserved_chunks")) {
+            while (rs.next()) {
+                String dimension = rs.getString("dimension");
+                ReservedChunk reservedChunk = new ReservedChunk(
+                        UUID.fromString(rs.getString("reserved_by")),
+                        rs.getInt("chunkX"),
+                        rs.getInt("chunkZ")
+                );
+                reservedChunks.computeIfAbsent(dimension, k -> new HashMap<>())
+                        .put(ReservedChunk.formatCoordinates(reservedChunk.getChunkX(), reservedChunk.getChunkZ()), reservedChunk);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return reservedChunks;
     }
 }
