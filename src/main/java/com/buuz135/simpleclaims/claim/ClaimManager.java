@@ -230,7 +230,7 @@ public class ClaimManager {
                 ReservedChunk reserved = reservedDimension.get(ReservedChunk.formatCoordinates(chunkX, chunkZ));
                 if (reserved != null && reserved.getReservedBy().equals(partyInfo.getId())) {
                     reservedDimension.remove(ReservedChunk.formatCoordinates(chunkX, chunkZ));
-                    databaseManager.deleteReservedChunk(dimension, chunkX, chunkZ);
+                    this.runAsync(() -> databaseManager.deleteReservedChunk(dimension, chunkX, chunkZ));
                 }
             }
         }
@@ -376,8 +376,10 @@ public class ClaimManager {
         this.reservedChunks.forEach((dimension, reservedMap) -> {
             reservedMap.values().removeIf(reserved -> reserved.getReservedBy().equals(partyInfo.getId()));
         });
-        this.chunks.forEach((dimension, chunkInfos) -> {
-            databaseManager.deleteReservedChunksByParty(dimension, partyInfo.getId());
+        this.runAsync(() -> {
+            this.chunks.forEach((dimension, chunkInfos) -> {
+                databaseManager.deleteReservedChunksByParty(dimension, partyInfo.getId());
+            });
         });
         
         partyClaimCounts.remove(partyInfo.getId());
@@ -541,7 +543,6 @@ public class ClaimManager {
         for (int i = 0; i < dx.length; i++) {
             int adjX = chunkX + dx[i];
             int adjZ = chunkZ + dz[i];
-            
             // Check if this adjacent chunk is already claimed by this party
             ChunkInfo existingChunk = getChunk(dimension, adjX, adjZ);
             if (existingChunk != null && existingChunk.getPartyOwner().equals(partyId)) {
@@ -597,7 +598,7 @@ public class ClaimManager {
                 }
                 for (ReservedChunk reserved : toRemove) {
                     reservedDimension.remove(ReservedChunk.formatCoordinates(reserved.getChunkX(), reserved.getChunkZ()));
-                    databaseManager.deleteReservedChunk(dimension, reserved.getChunkX(), reserved.getChunkZ());
+                    this.runAsync(() -> databaseManager.deleteReservedChunk(dimension, reserved.getChunkX(), reserved.getChunkZ()));
                 }
             }
             return;
@@ -640,7 +641,7 @@ public class ClaimManager {
         }
         for (ReservedChunk reserved : toRemove) {
             reservedDimension.remove(ReservedChunk.formatCoordinates(reserved.getChunkX(), reserved.getChunkZ()));
-            databaseManager.deleteReservedChunk(dimension, reserved.getChunkX(), reserved.getChunkZ());
+            this.runAsync(() -> databaseManager.deleteReservedChunk(dimension, reserved.getChunkX(), reserved.getChunkZ()));
         }
         
         // Add new reserved chunks
@@ -653,13 +654,13 @@ public class ClaimManager {
             if (!reservedDimension.containsKey(formattedCoord)) {
                 ReservedChunk reserved = new ReservedChunk(partyId, chunkX, chunkZ);
                 reservedDimension.put(formattedCoord, reserved);
-                databaseManager.saveReservedChunk(dimension, reserved);
+                this.runAsync(() -> databaseManager.saveReservedChunk(dimension, reserved));
             } else {
                 // Update if reserved by different party (shouldn't happen, but just in case)
                 ReservedChunk existing = reservedDimension.get(formattedCoord);
                 if (!existing.getReservedBy().equals(partyId)) {
                     existing.setReservedBy(partyId);
-                    databaseManager.saveReservedChunk(dimension, existing);
+                    this.runAsync(() -> databaseManager.saveReservedChunk(dimension, existing));
                 }
             }
         }
