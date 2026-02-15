@@ -3,6 +3,7 @@ package com.buuz135.simpleclaims.map;
 import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.claim.ClaimManager;
 import com.buuz135.simpleclaims.claim.chunk.ChunkInfo;
+import com.buuz135.simpleclaims.claim.chunk.ReservedChunk;
 import com.buuz135.simpleclaims.claim.party.PartyInfo;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.util.ChunkUtil;
@@ -21,6 +22,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class CustomImageBuilder {
@@ -275,6 +277,12 @@ public class CustomImageBuilder {
         if (claimedChunk != null) {
             partyInfo = ClaimManager.getInstance().getPartyById(claimedChunk.getPartyOwner());
         }
+        var reservedChunk = Main.CONFIG.get().isEnablePerimeterReservation() && Main.CONFIG.get().isShowPerimeterReservationOnTheMap() ?
+            ClaimManager.getInstance().getReservedChunk(this.worldChunk.getWorld().getName(), this.worldChunk.getX(), this.worldChunk.getZ()) : null;
+        PartyInfo reservedPartyInfo = null;
+        if (reservedChunk != null) {
+            reservedPartyInfo = ClaimManager.getInstance().getPartyById(reservedChunk.getReservedBy());
+        }
         var nearbyChunks = new ChunkInfo[]{
                 ClaimManager.getInstance().getChunk(this.worldChunk.getWorld().getName(), this.worldChunk.getX(), this.worldChunk.getZ() + 1), //NORTH
                 ClaimManager.getInstance().getChunk(this.worldChunk.getWorld().getName(), this.worldChunk.getX(), this.worldChunk.getZ() - 1), //SOUTH
@@ -318,13 +326,16 @@ public class CustomImageBuilder {
                 if (partyInfo != null) {
                     var isBorder = false;
                     var borderSize = 2;
-                    if ((ix <= borderSize && (nearbyChunks[3] == null || !nearbyChunks[3].getPartyOwner().equals(partyInfo.getId()))) //WEST
-                            || (ix >= this.image.width - borderSize - 1 && (nearbyChunks[2] == null || !nearbyChunks[2].getPartyOwner().equals(partyInfo.getId()))) //EAST
-                            || (iz <= borderSize && (nearbyChunks[1] == null || !nearbyChunks[1].getPartyOwner().equals(partyInfo.getId()))) // NORTH
-                            || (iz >= this.image.height - borderSize - 1 && (nearbyChunks[0] == null || !nearbyChunks[0].getPartyOwner().equals(partyInfo.getId())))) {
+                    UUID partyId = claimedChunk.getPartyOwner();
+                    if ((ix <= borderSize && (nearbyChunks[3] == null || !nearbyChunks[3].getPartyOwner().equals(partyId))) //WEST
+                            || (ix >= this.image.width - borderSize - 1 && (nearbyChunks[2] == null || !nearbyChunks[2].getPartyOwner().equals(partyId))) //EAST
+                            || (iz <= borderSize && (nearbyChunks[1] == null || !nearbyChunks[1].getPartyOwner().equals(partyId))) // NORTH
+                            || (iz >= this.image.height - borderSize - 1 && (nearbyChunks[0] == null || !nearbyChunks[0].getPartyOwner().equals(partyId)))) {
                         isBorder = true;
                     }
-                    getForceBlockColor(blockId, partyInfo.getColor(), this.outColor, isBorder);
+                    getForceBlockColor(blockId, partyInfo.getColor(), this.outColor, isBorder, false);
+                } else if (reservedPartyInfo != null) {
+                    getForceBlockColor(blockId, reservedPartyInfo.getColor(), this.outColor, false, true);
                 }
                 //-
 
@@ -404,12 +415,13 @@ public class CustomImageBuilder {
         outColor.a = 255;
     }
 
-    private static void getForceBlockColor(int blockId, int partyColor, @Nonnull CustomImageBuilder.Color outColor, boolean isBorder) {
+    private static void getForceBlockColor(int blockId, int partyColor, @Nonnull CustomImageBuilder.Color outColor, boolean isBorder, boolean isReserved) {
         int biomeTintR = partyColor >> 16 & 255;
         int biomeTintG = partyColor >> 8 & 255;
         int biomeTintB = partyColor >> 0 & 255;
 
         float overlayAlpha = isBorder ? 0.75f : 0.4f;
+        overlayAlpha = isReserved ? 0.15f : overlayAlpha;
 
         outColor.r = (int) (outColor.r * (1 - overlayAlpha) + biomeTintR * overlayAlpha);
         outColor.g = (int) (outColor.g * (1 - overlayAlpha) + biomeTintG * overlayAlpha);

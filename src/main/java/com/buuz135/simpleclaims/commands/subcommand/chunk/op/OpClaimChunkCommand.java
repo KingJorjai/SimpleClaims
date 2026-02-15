@@ -1,8 +1,10 @@
 package com.buuz135.simpleclaims.commands.subcommand.chunk.op;
 
+import com.buuz135.simpleclaims.Main;
 import com.buuz135.simpleclaims.claim.ClaimManager;
 import com.buuz135.simpleclaims.commands.CommandMessages;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -52,6 +54,7 @@ public class OpClaimChunkCommand extends AbstractAsyncCommand {
                         player.sendMessage(chunk.getPartyOwner().equals(party.getId()) ? CommandMessages.ALREADY_CLAIMED_BY_YOU : CommandMessages.ALREADY_CLAIMED_BY_ANOTHER_PLAYER);
                         return;
                     }
+
                     if (!ClaimManager.getInstance().hasEnoughClaimsLeft(party)) {
                         player.sendMessage(CommandMessages.NOT_ENOUGH_CHUNKS);
                         return;

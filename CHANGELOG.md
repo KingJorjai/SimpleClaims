@@ -1,3 +1,9 @@
+# 1.0.29
+
+* Added PlaceholderAPI support - PiggyPiglet
+* Added a claiming restriction to only claim adjacent chunks, closes #158
+* Added a claiming restriction to only claim chunks if they aren't next to another claimed chunk from another party
+
 # 1.0.28
 
 * Changed database saving to be async for performance reasons, closes #176
