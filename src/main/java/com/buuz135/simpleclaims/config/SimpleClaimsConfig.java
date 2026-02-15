@@ -47,8 +47,8 @@ public class SimpleClaimsConfig {
 
     private boolean ForceSimpleClaimsChunkWorldMap = true;
     private boolean CreativeModeBypassProtection = false;
-    private boolean EnableAdjacentChunkRestriction = true;
-    private boolean EnablePerimeterReservation = true;
+    private boolean EnableAdjacentChunkRestriction = false;
+    private boolean EnablePerimeterReservation = false;
 
     private String[] BlocksThatIgnoreInteractRestrictions = new String[]{"gravestone"};
 
