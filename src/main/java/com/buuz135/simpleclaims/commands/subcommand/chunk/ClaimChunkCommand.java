@@ -60,12 +60,10 @@ public class ClaimChunkCommand extends AbstractAsyncCommand {
                     
                     int chunkX = ChunkUtil.chunkCoordinate((int) playerRef.getTransform().getPosition().getX());
                     int chunkZ = ChunkUtil.chunkCoordinate((int) playerRef.getTransform().getPosition().getZ());
-                    
-                    // Check if chunk is reserved by own party - if so, allow claiming it
-                    boolean isOwnReserved = ClaimManager.getInstance().isReservedByOwnParty(player.getWorld().getName(), chunkX, chunkZ, party.getId());
+
                     
                     // Check if chunk is reserved by another party (only if perimeter reservation is enabled)
-                    if (Main.CONFIG.get().isEnablePerimeterReservation() && !isOwnReserved &&
+                    if (Main.CONFIG.get().isEnablePerimeterReservation() &&
                         ClaimManager.getInstance().isReservedByOtherParty(player.getWorld().getName(), chunkX, chunkZ, party.getId())) {
                         player.sendMessage(CommandMessages.CHUNK_RESERVED_BY_OTHER_PARTY);
                         return;
@@ -73,7 +71,7 @@ public class ClaimChunkCommand extends AbstractAsyncCommand {
                     
                     // Check if claiming this chunk would create a perimeter that overlaps with chunks reserved by other parties
                     // Skip this check if the chunk itself is reserved by our party (we can claim our own reserved chunks)
-                    if (Main.CONFIG.get().isEnablePerimeterReservation() && !isOwnReserved &&
+                    if (Main.CONFIG.get().isEnablePerimeterReservation() &&
                         ClaimManager.getInstance().wouldPerimeterOverlapOtherReserved(player.getWorld().getName(), chunkX, chunkZ, party.getId())) {
                         player.sendMessage(CommandMessages.CHUNK_RESERVED_BY_OTHER_PARTY);
                         return;
@@ -83,7 +81,7 @@ public class ClaimChunkCommand extends AbstractAsyncCommand {
                     if (Main.CONFIG.get().isEnableAdjacentChunkRestriction() && 
                         ClaimManager.getInstance().getAmountOfClaims(party) > 0) {
                         boolean isAdjacent = ClaimManager.getInstance().isAdjacentToPartyClaims(player.getWorld().getName(), chunkX, chunkZ, party.getId());
-                        if (!isAdjacent && !isOwnReserved) {
+                        if (!isAdjacent) {
                             player.sendMessage(CommandMessages.CHUNK_NOT_ADJACENT);
                             return;
                         }
