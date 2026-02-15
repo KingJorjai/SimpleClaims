@@ -421,11 +421,15 @@ public class ClaimManager {
         if (!mapUpdateQueue.containsKey(world.getName())) {
             mapUpdateQueue.put(world.getName(), new LongOpenHashSet());
         }
+        int[] dx = {-1, 0, 1, -1, 1, -1, 0, 1};
+        int[] dz = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+        for (int i = 0; i < dx.length; i++) {
+            int adjX = chunkX + dx[i];
+            int adjZ = chunkZ + dz[i];
+            mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(adjX, adjZ));
+        }
         mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX, chunkZ));
-        mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX + 1, chunkZ));
-        mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX - 1, chunkZ));
-        mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX, chunkZ + 1));
-        mapUpdateQueue.get(world.getName()).add(ChunkUtil.indexChunk(chunkX, chunkZ - 1));
         this.setNeedsMapUpdate(world.getName());
     }
 
